@@ -520,6 +520,37 @@
 
       let audioCtx = null;
 
+      let wakeLock = null;
+
+      async function acquireWakeLock() {
+        try {
+          if (!("wakeLock" in navigator)) return;
+          wakeLock = await navigator.wakeLock.request("screen");
+          wakeLock.addEventListener("release", () => {
+            wakeLock = null;
+          });
+        } catch (err) {
+          console.error("Wake Lock error:", err);
+        }
+      }
+      
+      async function releaseWakeLock() {
+        try {
+          if (wakeLock) {
+            await wakeLock.release();
+            wakeLock = null;
+          }
+        } catch (err) {
+          console.error("Wake Lock release error:", err);
+        }
+      }
+      
+      document.addEventListener("visibilitychange", async () => {
+        if (document.visibilityState === "visible" && scanning) {
+          await acquireWakeLock();
+        }
+      });
+
       const inventory = new Map();
       const productMaster = new Map();
 
@@ -1200,10 +1231,14 @@
         rafId = requestAnimationFrame(scanLoop);
       }
 
-      startBtn.addEventListener("click", startCamera);
+      startBtn.addEventListener("click", async () => {
+        await startCamera();
+        await acquireWakeLock();
+      });
 
-      stopBtn.addEventListener("click", () => {
+      stopBtn.addEventListener("click", async () => {
         stopCamera();
+        await releaseWakeLock();
         setStatus("カメラ停止");
         setStartGuide(true);
       });
@@ -1322,5 +1357,6 @@
   </script>
 </body>
 </html>
+
 
 
