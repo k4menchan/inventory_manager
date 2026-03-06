@@ -26,7 +26,6 @@
       font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
       overflow:hidden;
     }
-
     .app{
       height:100dvh;
       display:grid;
@@ -34,7 +33,6 @@
       gap:8px;
       padding:8px;
     }
-
     .camera{
       position:relative;
       min-height:0;
@@ -43,7 +41,6 @@
       border-radius:18px;
       overflow:hidden;
     }
-
     video{
       width:100%;
       height:100%;
@@ -51,7 +48,6 @@
       display:block;
       background:#000;
     }
-
     .scan-box{
       position:absolute;
       left:7%;
@@ -69,7 +65,6 @@
       transform:scale(1.02);
       box-shadow:0 0 0 9999px rgba(0,0,0,.20), 0 0 0 4px rgba(255,242,125,.25) inset;
     }
-
     .topbar{
       position:absolute;
       top:8px;
@@ -79,8 +74,8 @@
       gap:8px;
       align-items:center;
       z-index:3;
+      flex-wrap:wrap;
     }
-
     .badge{
       background:rgba(9,13,27,.72);
       backdrop-filter:blur(8px);
@@ -92,14 +87,12 @@
       font-weight:700;
       white-space:nowrap;
     }
-
     .status{
       flex:1;
       min-width:0;
       overflow:hidden;
       text-overflow:ellipsis;
     }
-
     .flash{
       position:absolute;
       left:50%;
@@ -116,25 +109,38 @@
       pointer-events:none;
       z-index:5;
       transition:.2s ease;
+      max-width:92vw;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
     }
     .flash.show{
       opacity:1;
       transform:translateX(-50%) translateY(0);
     }
-
-    .controls{
-      display:grid;
-      grid-template-columns: repeat(4,1fr);
-      gap:8px;
-    }
-
     .panel{
       background:rgba(18,25,51,.96);
       border:1px solid var(--line);
       border-radius:18px;
       padding:8px;
     }
-
+    .controls{
+      display:grid;
+      grid-template-columns: repeat(6,1fr);
+      gap:8px;
+    }
+    .master-row{
+      display:grid;
+      grid-template-columns: 1.3fr .8fr .8fr;
+      gap:8px;
+      margin-top:8px;
+    }
+    .entry{
+      display:grid;
+      grid-template-columns: 1.2fr 1.5fr .7fr .8fr;
+      gap:8px;
+      margin-top:8px;
+    }
     button,input{
       width:100%;
       min-width:0;
@@ -143,7 +149,6 @@
       border-radius:14px;
       font:inherit;
     }
-
     button{
       padding:13px 10px;
       font-weight:800;
@@ -166,14 +171,6 @@
       color:#fff;
       border:none;
     }
-
-    .entry{
-      display:grid;
-      grid-template-columns: 1.5fr .8fr .9fr;
-      gap:8px;
-      margin-top:8px;
-    }
-
     input{
       padding:14px 12px;
       color:var(--text);
@@ -181,50 +178,47 @@
       border:1px solid var(--line);
       text-align:center;
     }
-
-    #lastCode{
+    #lastCode,#sheetCode{
       font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
       font-size:15px;
     }
-
-    #qtyInput{
+    #productName{
+      text-align:left;
+      font-size:14px;
+    }
+    #qtyInput,#sheetQty{
       font-size:24px;
       font-weight:900;
       background:#162344;
     }
-
     .summary{
       display:grid;
-      grid-template-columns: 1fr auto auto;
+      grid-template-columns: 1fr auto auto auto;
       gap:8px;
       align-items:center;
       margin-top:8px;
       font-size:13px;
       color:var(--muted);
     }
-
     .list{
       margin-top:8px;
-      max-height:26dvh;
+      max-height:25dvh;
       overflow:auto;
       border:1px solid var(--line);
       border-radius:14px;
       background:#0f1630;
     }
-
     table{
       width:100%;
       border-collapse:collapse;
       font-size:14px;
     }
-
     td{
       border-bottom:1px solid #202b54;
       padding:10px 8px;
       vertical-align:middle;
     }
     tr:last-child td{border-bottom:none}
-
     .mono{
       font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
       word-break:break-all;
@@ -241,7 +235,6 @@
       min-height:unset;
       font-size:13px;
     }
-
     .qty-sheet{
       position:fixed;
       inset:0;
@@ -260,7 +253,7 @@
       pointer-events:auto;
     }
     .qty-card{
-      width:min(560px,100%);
+      width:min(620px,100%);
       background:#121933;
       border:1px solid var(--line);
       border-radius:22px 22px 16px 16px;
@@ -273,15 +266,21 @@
       margin-bottom:6px;
     }
     .qty-code{
-      font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
       font-size:16px;
       font-weight:800;
       word-break:break-all;
+      margin-bottom:8px;
+    }
+    .qty-name{
+      font-size:14px;
       margin-bottom:10px;
+      color:#dfe7ff;
+      min-height:20px;
+      word-break:break-word;
     }
     .qty-row{
       display:grid;
-      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-columns: 1.2fr .8fr .8fr;
       gap:8px;
       margin-top:10px;
     }
@@ -296,17 +295,17 @@
       font-size:20px;
       font-weight:900;
     }
-
     .focus-ring:focus{
       box-shadow:0 0 0 3px rgba(137,168,255,.35);
       border-color:#86a7ff;
     }
-
-    @media (max-width:640px){
-      .controls{grid-template-columns: repeat(4,1fr)}
-      .entry{grid-template-columns: 1.35fr .75fr .9fr}
+    @media (max-width:780px){
+      .controls{grid-template-columns: repeat(3,1fr)}
+      .master-row{grid-template-columns: 1fr 1fr 1fr}
+      .entry{grid-template-columns: 1fr 1.2fr .65fr .8fr}
+      .summary{grid-template-columns: 1fr auto}
+      .list{max-height:23dvh}
       button{padding:12px 8px;font-size:14px}
-      .list{max-height:24dvh}
     }
   </style>
 </head>
@@ -320,6 +319,7 @@
         <div id="status" class="badge status">待機中</div>
         <div class="badge">件数 <span id="itemCount">0</span></div>
         <div class="badge">合計 <span id="totalQty">0</span></div>
+        <div class="badge">マスタ <span id="masterCount">0</span></div>
       </div>
 
       <div id="flash" class="flash">読み取り成功</div>
@@ -331,24 +331,38 @@
         <button id="stopBtn">停止</button>
         <button id="switchBtn">切替</button>
         <button id="exportBtn" class="ok">CSV</button>
+        <button id="saveMasterBtn">マスタ保存</button>
+        <button id="clearMasterBtn" class="danger">マスタ消去</button>
+      </div>
+
+      <div class="master-row">
+        <input id="masterFileName" readonly placeholder="master.csv を選択" />
+        <label>
+          <input id="masterFile" type="file" accept=".csv,text/csv" style="display:none">
+          <button id="pickMasterBtn" type="button">CSV選択</button>
+        </label>
+        <button id="loadSampleBtn" type="button">読込テスト</button>
       </div>
 
       <div class="entry">
         <input id="lastCode" class="focus-ring" readonly placeholder="コード" />
+        <input id="productName" class="focus-ring" placeholder="商品名" />
         <input id="qtyInput" class="focus-ring" type="number" min="1" step="1" value="1" inputmode="numeric" />
         <button id="addBtn" class="ok">登録</button>
       </div>
 
       <div class="entry" style="margin-top:8px;">
         <input id="manualCode" class="focus-ring" inputmode="numeric" placeholder="手入力コード" />
+        <input id="manualName" class="focus-ring" placeholder="商品名手入力(任意)" />
         <button id="clearCurrentBtn">クリア</button>
         <button id="resetBtn" class="danger">全削除</button>
       </div>
 
       <div class="summary">
         <div id="smallStatus">準備OK</div>
-        <div>同一JANは加算</div>
         <div id="cameraState">CAM:OFF</div>
+        <div id="masterState">MASTER:未読込</div>
+        <div>同一JANは加算</div>
       </div>
 
       <div class="list">
@@ -362,19 +376,18 @@
       <div class="qty-card">
         <div class="qty-title">読み取ったコード</div>
         <div id="sheetCode" class="qty-code">-</div>
+        <div id="sheetName" class="qty-name"></div>
 
-        <div class="entry" style="grid-template-columns:1fr .9fr;">
+        <div class="qty-row">
+          <input id="sheetNameInput" class="focus-ring" placeholder="商品名" />
           <input id="sheetQty" class="focus-ring" type="number" min="1" step="1" value="1" inputmode="numeric" />
           <button id="sheetAddBtn" class="ok">登録</button>
         </div>
 
-        <div class="qty-row">
+        <div class="qty-pad">
           <button data-setqty="1">1</button>
           <button data-setqty="5">5</button>
           <button data-setqty="10">10</button>
-        </div>
-
-        <div class="qty-pad">
           <button data-key="1">1</button>
           <button data-key="2">2</button>
           <button data-key="3">3</button>
@@ -400,6 +413,7 @@
       const statusEl = document.getElementById("status");
       const smallStatusEl = document.getElementById("smallStatus");
       const cameraStateEl = document.getElementById("cameraState");
+      const masterStateEl = document.getElementById("masterState");
       const flashEl = document.getElementById("flash");
       const scanBoxEl = document.getElementById("scanBox");
 
@@ -407,19 +421,31 @@
       const stopBtn = document.getElementById("stopBtn");
       const switchBtn = document.getElementById("switchBtn");
       const exportBtn = document.getElementById("exportBtn");
+      const saveMasterBtn = document.getElementById("saveMasterBtn");
+      const clearMasterBtn = document.getElementById("clearMasterBtn");
       const addBtn = document.getElementById("addBtn");
       const clearCurrentBtn = document.getElementById("clearCurrentBtn");
       const resetBtn = document.getElementById("resetBtn");
 
+      const masterFile = document.getElementById("masterFile");
+      const pickMasterBtn = document.getElementById("pickMasterBtn");
+      const loadSampleBtn = document.getElementById("loadSampleBtn");
+      const masterFileName = document.getElementById("masterFileName");
+
       const lastCode = document.getElementById("lastCode");
-      const manualCode = document.getElementById("manualCode");
+      const productName = document.getElementById("productName");
       const qtyInput = document.getElementById("qtyInput");
+      const manualCode = document.getElementById("manualCode");
+      const manualName = document.getElementById("manualName");
       const tbody = document.getElementById("tbody");
       const itemCount = document.getElementById("itemCount");
       const totalQty = document.getElementById("totalQty");
+      const masterCount = document.getElementById("masterCount");
 
       const qtySheet = document.getElementById("qtySheet");
       const sheetCode = document.getElementById("sheetCode");
+      const sheetName = document.getElementById("sheetName");
+      const sheetNameInput = document.getElementById("sheetNameInput");
       const sheetQty = document.getElementById("sheetQty");
       const sheetAddBtn = document.getElementById("sheetAddBtn");
       const sheetCloseBtn = document.getElementById("sheetCloseBtn");
@@ -434,7 +460,12 @@
       let flashTimer = 0;
       let autoOpenQtySheet = true;
 
+      // inventory: code -> { name, qty }
       const inventory = new Map();
+      // productMaster: code -> name
+      const productMaster = new Map();
+
+      const LS_MASTER_KEY = "inventory_master_v1";
 
       function setStatus(msg) {
         statusEl.textContent = msg;
@@ -443,6 +474,10 @@
 
       function normalizeCode(code) {
         return String(code || "").replace(/[^\dA-Za-z]/g, "").trim();
+      }
+
+      function normalizeName(name) {
+        return String(name || "").trim();
       }
 
       function isProbablyProductCode(code) {
@@ -454,10 +489,19 @@
         return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
       }
 
+      function getMasterName(code) {
+        return productMaster.get(code) || "";
+      }
+
+      function updateMasterSummary() {
+        masterCount.textContent = String(productMaster.size);
+        masterStateEl.textContent = productMaster.size ? `MASTER:${productMaster.size}件` : "MASTER:未読込";
+      }
+
       function updateSummary() {
         itemCount.textContent = String(inventory.size);
         let total = 0;
-        for (const qty of inventory.values()) total += qty;
+        for (const row of inventory.values()) total += row.qty;
         totalQty.textContent = String(total);
       }
 
@@ -467,43 +511,46 @@
 
         if (!entries.length) {
           const tr = document.createElement("tr");
-          tr.innerHTML = `<td colspan="3" style="text-align:center;color:#98a6d8;padding:16px;">まだ登録なし</td>`;
+          tr.innerHTML = `<td colspan="4" style="text-align:center;color:#98a6d8;padding:16px;">まだ登録なし</td>`;
           tbody.appendChild(tr);
           updateSummary();
           return;
         }
 
-        for (const [code, qty] of entries) {
+        for (const [code, row] of entries) {
           const tr = document.createElement("tr");
 
           const tdCode = document.createElement("td");
           tdCode.className = "mono";
+          tdCode.style.width = "27%";
           tdCode.textContent = code;
+
+          const tdName = document.createElement("td");
+          tdName.style.width = "43%";
+          tdName.textContent = row.name || "";
 
           const tdQty = document.createElement("td");
           tdQty.className = "right mono";
-          tdQty.style.width = "64px";
-          tdQty.textContent = String(qty);
+          tdQty.style.width = "10%";
+          tdQty.textContent = String(row.qty);
 
           const tdActions = document.createElement("td");
-          tdActions.style.width = "132px";
-
+          tdActions.style.width = "20%";
           const wrap = document.createElement("div");
           wrap.className = "mini-actions";
 
           const plusBtn = document.createElement("button");
           plusBtn.textContent = "+1";
           plusBtn.addEventListener("click", () => {
-            inventory.set(code, (inventory.get(code) || 0) + 1);
+            row.qty += 1;
             renderTable();
           });
 
           const minusBtn = document.createElement("button");
           minusBtn.textContent = "-1";
           minusBtn.addEventListener("click", () => {
-            const next = (inventory.get(code) || 0) - 1;
-            if (next <= 0) inventory.delete(code);
-            else inventory.set(code, next);
+            row.qty -= 1;
+            if (row.qty <= 0) inventory.delete(code);
             renderTable();
           });
 
@@ -516,8 +563,7 @@
 
           wrap.append(plusBtn, minusBtn, delBtn);
           tdActions.appendChild(wrap);
-
-          tr.append(tdCode, tdQty, tdActions);
+          tr.append(tdCode, tdName, tdQty, tdActions);
           tbody.appendChild(tr);
         }
 
@@ -537,17 +583,31 @@
 
       function vibrateHit() {
         try {
-          if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+          if (navigator.vibrate) navigator.vibrate([70, 35, 70]);
         } catch {}
       }
 
-      function openQtySheet(code) {
+      function setDetectedFields(code, name = "") {
+        lastCode.value = code || "";
+        productName.value = name || "";
+        manualCode.value = "";
+        manualName.value = "";
+      }
+
+      function openQtySheet(code, name) {
         sheetCode.textContent = code || "-";
+        sheetName.textContent = name || "商品名未登録";
+        sheetNameInput.value = name || "";
         sheetQty.value = qtyInput.value || "1";
         qtySheet.classList.add("show");
         setTimeout(() => {
-          sheetQty.focus({ preventScroll: true });
-          sheetQty.select?.();
+          if (sheetNameInput.value) {
+            sheetQty.focus({ preventScroll: true });
+            sheetQty.select?.();
+          } else {
+            sheetNameInput.focus({ preventScroll: true });
+            sheetNameInput.select?.();
+          }
         }, 30);
       }
 
@@ -556,88 +616,97 @@
       }
 
       function applyDetectedCode(code) {
-        lastCode.value = code;
-        manualCode.value = "";
+        const matchedName = getMasterName(code);
+        setDetectedFields(code, matchedName);
         qtyInput.value = "1";
-        showFlash(`読取 ${code}`);
+        showFlash(matchedName ? `読取 ${code}` : `読取 ${code} / 名称未登録`);
         vibrateHit();
-        setStatus(`読取成功: ${code}`);
+        setStatus(matchedName ? `読取成功: ${code}` : `読取成功: ${code}（商品名未登録）`);
 
-        // 数量入力へ即移動
-        qtyInput.focus({ preventScroll: true });
-        qtyInput.select?.();
-
-        // ポップアップも出す
         if (autoOpenQtySheet) {
-          openQtySheet(code);
+          openQtySheet(code, matchedName);
+        } else {
+          if (matchedName) {
+            qtyInput.focus({ preventScroll: true });
+            qtyInput.select?.();
+          } else {
+            productName.focus({ preventScroll: true });
+            productName.select?.();
+          }
         }
       }
 
-      function addCode(code, qty) {
-        inventory.set(code, (inventory.get(code) || 0) + qty);
-        renderTable();
+      function addOrUpdateMaster(code, name) {
+        const cleanCode = normalizeCode(code);
+        const cleanName = normalizeName(name);
+        if (!cleanCode || !cleanName) return;
+        productMaster.set(cleanCode, cleanName);
+      }
+
+      function addInventory(code, name, qty) {
+        const current = inventory.get(code);
+        if (current) {
+          current.qty += qty;
+          if (name) current.name = name;
+        } else {
+          inventory.set(code, { name: name || "", qty });
+        }
       }
 
       function addCurrentCode() {
         const code = normalizeCode(lastCode.value || manualCode.value);
+        const inputName = normalizeName(productName.value || manualName.value || getMasterName(code));
         const qty = Math.floor(Number(qtyInput.value));
 
-        if (!code) {
-          setStatus("コード未入力");
-          return;
-        }
-        if (!isProbablyProductCode(code)) {
-          setStatus("コード形式が不正っぽい");
-          return;
-        }
-        if (!Number.isFinite(qty) || qty <= 0) {
-          setStatus("数量は1以上");
-          return;
-        }
+        if (!code) return setStatus("コード未入力");
+        if (!isProbablyProductCode(code)) return setStatus("コード形式が不正っぽい");
+        if (!Number.isFinite(qty) || qty <= 0) return setStatus("数量は1以上");
+        if (!inputName) return setStatus("商品名が空です");
 
-        addCode(code, qty);
+        addOrUpdateMaster(code, inputName);
+        addInventory(code, inputName, qty);
+        renderTable();
+        updateMasterSummary();
+
         setStatus(`登録: ${code} × ${qty}`);
         showFlash(`登録 ${qty}`);
-        lastCode.value = "";
-        manualCode.value = "";
+        setDetectedFields("", "");
         qtyInput.value = "1";
         closeQtySheet();
       }
 
       function addFromSheet() {
         const code = normalizeCode(sheetCode.textContent);
+        const name = normalizeName(sheetNameInput.value || getMasterName(code));
         const qty = Math.floor(Number(sheetQty.value));
-        if (!code || !isProbablyProductCode(code)) {
-          setStatus("シート内コードが不正");
-          return;
-        }
-        if (!Number.isFinite(qty) || qty <= 0) {
-          setStatus("数量は1以上");
-          return;
-        }
 
-        qtyInput.value = String(qty);
-        addCode(code, qty);
+        if (!code || !isProbablyProductCode(code)) return setStatus("シート内コードが不正");
+        if (!name) return setStatus("商品名が空です");
+        if (!Number.isFinite(qty) || qty <= 0) return setStatus("数量は1以上");
+
+        addOrUpdateMaster(code, name);
+        addInventory(code, name, qty);
+        renderTable();
+        updateMasterSummary();
+
         setStatus(`登録: ${code} × ${qty}`);
         showFlash(`登録 ${qty}`);
-        lastCode.value = "";
-        manualCode.value = "";
+        setDetectedFields("", "");
         qtyInput.value = "1";
         closeQtySheet();
       }
 
       function clearCurrent() {
-        lastCode.value = "";
-        manualCode.value = "";
+        setDetectedFields("", "");
         qtyInput.value = "1";
         closeQtySheet();
         setStatus("クリア");
       }
 
       function exportCsv() {
-        const rows = [["JAN", "個数"]];
-        for (const [code, qty] of [...inventory.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-          rows.push([code, String(qty)]);
+        const rows = [["JAN", "商品名", "個数"]];
+        for (const [code, row] of [...inventory.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+          rows.push([code, row.name || "", String(row.qty)]);
         }
 
         const csv = rows.map(r => r.map(escapeCsv).join(",")).join("\r\n");
@@ -659,13 +728,125 @@
         setStatus(`CSV出力: ${name}`);
       }
 
+      function splitCsvLine(line) {
+        const out = [];
+        let cur = "";
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') {
+            if (inQuotes && line[i + 1] === '"') {
+              cur += '"';
+              i++;
+            } else {
+              inQuotes = !inQuotes;
+            }
+          } else if (ch === "," && !inQuotes) {
+            out.push(cur);
+            cur = "";
+          } else {
+            cur += ch;
+          }
+        }
+        out.push(cur);
+        return out;
+      }
+
+      function parseCsv(text) {
+        const lines = text.replace(/^\uFEFF/, "").split(/\r\n|\n|\r/).filter(l => l.trim() !== "");
+        if (!lines.length) return { ok: false, error: "CSVが空です" };
+
+        const header = splitCsvLine(lines[0]).map(v => v.trim().toLowerCase());
+        const janIdx = header.findIndex(h => h === "jan" || h === "code");
+        const nameIdx = header.findIndex(h => h === "name" || h === "product" || h === "product_name");
+
+        if (janIdx === -1 || nameIdx === -1) {
+          return { ok: false, error: "ヘッダは jan,name にしてください" };
+        }
+
+        const map = new Map();
+        let skipped = 0;
+
+        for (let i = 1; i < lines.length; i++) {
+          const cols = splitCsvLine(lines[i]);
+          const code = normalizeCode(cols[janIdx] ?? "");
+          const name = normalizeName(cols[nameIdx] ?? "");
+          if (!code || !name) {
+            skipped++;
+            continue;
+          }
+          map.set(code, name);
+        }
+
+        return { ok: true, map, skipped };
+      }
+
+      async function importMasterFile(file) {
+        try {
+          const text = await file.text();
+          const result = parseCsv(text);
+
+          if (!result.ok) {
+            setStatus(`マスタ読込失敗: ${result.error}`);
+            return;
+          }
+
+          productMaster.clear();
+          for (const [code, name] of result.map.entries()) {
+            productMaster.set(code, name);
+          }
+
+          masterFileName.value = file.name || "master.csv";
+          updateMasterSummary();
+          setStatus(`マスタ読込完了: ${productMaster.size}件`);
+          if (result.skipped) {
+            smallStatusEl.textContent += ` / スキップ ${result.skipped}`;
+          }
+        } catch (err) {
+          console.error(err);
+          setStatus("マスタ読込失敗");
+        }
+      }
+
+      function saveMasterToLocal() {
+        const arr = [...productMaster.entries()];
+        localStorage.setItem(LS_MASTER_KEY, JSON.stringify(arr));
+        setStatus(`マスタ保存: ${arr.length}件`);
+      }
+
+      function loadMasterFromLocal() {
+        try {
+          const raw = localStorage.getItem(LS_MASTER_KEY);
+          if (!raw) return false;
+          const arr = JSON.parse(raw);
+          productMaster.clear();
+          for (const item of arr) {
+            if (Array.isArray(item) && item.length >= 2) {
+              addOrUpdateMaster(item[0], item[1]);
+            }
+          }
+          updateMasterSummary();
+          setStatus(`保存済みマスタ読込: ${productMaster.size}件`);
+          return true;
+        } catch (err) {
+          console.error(err);
+          return false;
+        }
+      }
+
+      function clearMasterAll() {
+        productMaster.clear();
+        localStorage.removeItem(LS_MASTER_KEY);
+        updateMasterSummary();
+        setStatus("マスタ消去");
+      }
+
       async function initDetector() {
         if (!("BarcodeDetector" in window)) {
           detector = null;
           setStatus("BarcodeDetector未対応。手入力のみ");
           return false;
         }
-
         try {
           const formats = await window.BarcodeDetector.getSupportedFormats();
           const preferred = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"];
@@ -683,18 +864,9 @@
       async function startCamera() {
         stopCamera();
 
-        if (!window.isSecureContext) {
-          setStatus("HTTPSで開いてね");
-          return;
-        }
-        if (!navigator.mediaDevices) {
-          setStatus("mediaDevicesなし");
-          return;
-        }
-        if (!navigator.mediaDevices.getUserMedia) {
-          setStatus("getUserMediaなし");
-          return;
-        }
+        if (!window.isSecureContext) return setStatus("HTTPSで開いてね");
+        if (!navigator.mediaDevices) return setStatus("mediaDevicesなし");
+        if (!navigator.mediaDevices.getUserMedia) return setStatus("getUserMediaなし");
 
         await initDetector();
 
@@ -774,10 +946,26 @@
         useBackCamera = !useBackCamera;
         await startCamera();
       });
+      exportBtn.addEventListener("click", exportCsv);
+      saveMasterBtn.addEventListener("click", saveMasterToLocal);
+      clearMasterBtn.addEventListener("click", () => {
+        if (!confirm("保存済みマスタも消す？")) return;
+        clearMasterAll();
+      });
+
+      pickMasterBtn.addEventListener("click", () => masterFile.click());
+      masterFile.addEventListener("change", async () => {
+        const file = masterFile.files?.[0];
+        if (!file) return;
+        await importMasterFile(file);
+      });
+
+      loadSampleBtn.addEventListener("click", () => {
+        setStatus("CSV選択 → 読み込みしてね");
+      });
+
       addBtn.addEventListener("click", addCurrentCode);
       clearCurrentBtn.addEventListener("click", clearCurrent);
-      exportBtn.addEventListener("click", exportCsv);
-
       resetBtn.addEventListener("click", () => {
         if (!confirm("一覧を全削除する？")) return;
         inventory.clear();
@@ -788,7 +976,22 @@
       manualCode.addEventListener("keydown", e => {
         if (e.key === "Enter") {
           e.preventDefault();
-          lastCode.value = normalizeCode(manualCode.value);
+          const code = normalizeCode(manualCode.value);
+          const name = normalizeName(manualName.value || getMasterName(code));
+          setDetectedFields(code, name);
+          if (name) {
+            qtyInput.focus({ preventScroll: true });
+            qtyInput.select?.();
+          } else {
+            productName.focus({ preventScroll: true });
+            productName.select?.();
+          }
+        }
+      });
+
+      productName.addEventListener("keydown", e => {
+        if (e.key === "Enter") {
+          e.preventDefault();
           qtyInput.focus({ preventScroll: true });
           qtyInput.select?.();
         }
@@ -798,6 +1001,14 @@
         if (e.key === "Enter") {
           e.preventDefault();
           addCurrentCode();
+        }
+      });
+
+      sheetNameInput.addEventListener("keydown", e => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          sheetQty.focus({ preventScroll: true });
+          sheetQty.select?.();
         }
       });
 
@@ -834,9 +1045,11 @@
       });
 
       renderTable();
-      setStatus(window.isSecureContext ? "準備OK" : "HTTPSで開いてね");
+      updateMasterSummary();
+      if (!loadMasterFromLocal()) {
+        setStatus(window.isSecureContext ? "準備OK / 先にマスタCSV読込がおすすめ" : "HTTPSで開いてね");
+      }
     })();
   </script>
 </body>
 </html>
-
