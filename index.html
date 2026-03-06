@@ -50,7 +50,6 @@
       background:#000;
     }
 
-    /* 見た目の枠。実際の検出範囲にかなり近づけてある */
     .scan-box{
       position:absolute;
       left:16%;
@@ -96,6 +95,12 @@
     .status{
       flex:1;
       min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .last-badge{
+      max-width:min(56vw, 460px);
       overflow:hidden;
       text-overflow:ellipsis;
     }
@@ -149,12 +154,9 @@
       overflow:hidden;
       text-overflow:ellipsis;
     }
-    
     .camera-guide.show{
       opacity:1;
     }
-    
-    /* 入力待ち中は上へ移動 */
     .camera-guide.input-mode{
       top:56px;
       bottom:auto;
@@ -169,7 +171,7 @@
 
     .controls{
       display:grid;
-      grid-template-columns: repeat(5,1fr);
+      grid-template-columns: repeat(6,1fr);
       gap:8px;
     }
 
@@ -365,6 +367,7 @@
       .entry{grid-template-columns: 1fr 1.2fr .65fr .8fr}
       .list{max-height:23dvh}
       button{padding:12px 8px;font-size:14px}
+      .last-badge{max-width:90vw}
     }
   </style>
 </head>
@@ -376,6 +379,7 @@
 
       <div class="topbar">
         <div id="status" class="badge status">商品リスト読み込み中...</div>
+        <div id="lastInfo" class="badge last-badge">前回 -</div>
         <div class="badge">件数 <span id="itemCount">0</span></div>
         <div class="badge">合計 <span id="totalQty">0</span></div>
         <div class="badge">商品リスト <span id="masterCount">0</span></div>
@@ -391,6 +395,7 @@
         <button id="stopBtn">停止</button>
         <button id="switchBtn">切替</button>
         <button id="exportBtn" class="ok">CSV出力</button>
+        <button id="copyBtn">コピー</button>
         <button id="resetBtn" class="danger">全削除</button>
       </div>
 
@@ -462,11 +467,13 @@
       const flashEl = document.getElementById("flash");
       const scanBoxEl = document.getElementById("scanBox");
       const cameraGuide = document.getElementById("cameraGuide");
+      const lastInfoEl = document.getElementById("lastInfo");
 
       const startBtn = document.getElementById("startBtn");
       const stopBtn = document.getElementById("stopBtn");
       const switchBtn = document.getElementById("switchBtn");
       const exportBtn = document.getElementById("exportBtn");
+      const copyBtn = document.getElementById("copyBtn");
       const addBtn = document.getElementById("addBtn");
       const clearCurrentBtn = document.getElementById("clearCurrentBtn");
       const resetBtn = document.getElementById("resetBtn");
@@ -491,7 +498,6 @@
       const sheetCancelBtn = document.getElementById("sheetCancelBtn");
       const sheetClearBtn = document.getElementById("sheetClearBtn");
 
-      // 中央切り出し用 canvas
       const detectCanvas = document.createElement("canvas");
       const detectCtx = detectCanvas.getContext("2d", { willReadFrequently: true });
 
@@ -510,7 +516,6 @@
       const REQUIRED_CONSECUTIVE_DETECTIONS = 2;
       const SCAN_COOLDOWN_MS = 2200;
 
-      // 中央だけ読むための切り出し比率
       const DETECT_REGION = {
         x: 0.10,
         y: 0.20,
@@ -519,8 +524,18 @@
       };
 
       let audioCtx = null;
-
       let wakeLock = null;
+
+      const inventory = new Map();
+      const productMaster = new Map();
+
+      function setStatus(msg) {
+        statusEl.textContent = msg;
+      }
+
+      function setLastInfo(text) {
+        lastInfoEl.textContent = text || "前回 -";
+      }
 
       async function acquireWakeLock() {
         try {
@@ -550,13 +565,6 @@
           await acquireWakeLock();
         }
       });
-
-      const inventory = new Map();
-      const productMaster = new Map();
-
-      function setStatus(msg) {
-        statusEl.textContent = msg;
-      }
 
       function showCameraGuide(message, mode = "normal") {
         cameraGuide.textContent = message;
@@ -660,6 +668,8 @@
             row.qty += 1;
             touchInventoryOrder(code, row);
             feedbackQty();
+            setStatus("数量変更");
+            setLastInfo(`前回 ${code} × ${row.qty}`);
             renderTable();
           });
 
@@ -669,10 +679,13 @@
             row.qty -= 1;
             if (row.qty <= 0) {
               inventory.delete(code);
+              setLastInfo(`前回 ${code} を削除`);
             } else {
               touchInventoryOrder(code, row);
+              setLastInfo(`前回 ${code} × ${row.qty}`);
             }
             feedbackQty();
+            setStatus("数量変更");
             renderTable();
           });
 
@@ -680,6 +693,8 @@
           delBtn.textContent = "Del";
           delBtn.addEventListener("click", () => {
             inventory.delete(code);
+            setStatus("削除");
+            setLastInfo(`前回 ${code} を削除`);
             renderTable();
           });
 
@@ -825,7 +840,8 @@
         if (matchedName) soundHitMatched();
         else soundHitUnmatched();
 
-        setStatus(matchedName ? `読取成功: ${code}` : `読取成功: ${code}（商品名未登録）`);
+        setStatus(matchedName ? "商品ヒット" : "商品未登録");
+        setLastInfo(matchedName ? `前回 読取 ${code}` : `前回 読取 ${code} / 商品名未登録`);
 
         if (autoOpenQtySheet) {
           openQtySheet(code, matchedName);
@@ -878,7 +894,8 @@
         renderTable();
         updateMasterSummary();
 
-        setStatus(`登録: ${code} × ${qty}`);
+        setStatus("登録完了");
+        setLastInfo(`前回 ${code} × ${qty}`);
         showFlash(`登録 ${qty}`);
         soundRegistered();
         vibrate([50, 30, 70]);
@@ -902,7 +919,8 @@
         renderTable();
         updateMasterSummary();
 
-        setStatus(`登録: ${code} × ${qty}`);
+        setStatus("登録完了");
+        setLastInfo(`前回 ${code} × ${qty}`);
         showFlash(`登録 ${qty}`);
         soundRegistered();
         vibrate([50, 30, 70]);
@@ -941,7 +959,47 @@
         a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-        setStatus(`CSV出力: ${name}`);
+        setStatus("CSV出力完了");
+        setLastInfo(`前回 CSV ${name}`);
+      }
+
+      function buildClipboardText() {
+        const rows = [["JAN", "商品名", "個数"]];
+        for (const [code, row] of inventory.entries()) {
+          rows.push([code, row.name || "", String(row.qty)]);
+        }
+        return rows.map(r => r.map(escapeCsv).join("	")).join("\n");
+      }
+
+      async function copyToClipboard() {
+        const text = buildClipboardText();
+
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+          } else {
+            const ta = document.createElement("textarea");
+            ta.value = text;
+            ta.style.position = "fixed";
+            ta.style.left = "-9999px";
+            ta.style.top = "0";
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            const ok = document.execCommand("copy");
+            ta.remove();
+            if (!ok) throw new Error("copy failed");
+          }
+
+          setStatus("クリップボードにコピー完了");
+          setLastInfo("前回 クリップボードコピー");
+          showFlash("コピー完了");
+          soundRegistered();
+          vibrate([40, 20, 40]);
+        } catch (err) {
+          console.error(err);
+          setStatus("コピーに失敗しました");
+        }
       }
 
       function splitCsvLine(line) {
@@ -1022,7 +1080,8 @@
           }
 
           updateMasterSummary();
-          setStatus(`商品リスト読み込みOK: ${productMaster.size}件`);
+          setStatus("商品リスト読み込みOK");
+          setLastInfo(`前回 商品リスト ${productMaster.size}件`);
           return true;
         } catch (err) {
           console.error(err);
@@ -1148,9 +1207,7 @@
           video.srcObject = stream;
           await video.play();
           const track = stream.getVideoTracks()[0];
-          track.applyConstraints({
-            advanced: [{ focusMode: "continuous" }]
-          });
+          track.applyConstraints({ advanced: [{ focusMode: "continuous" }] }).catch(() => {});
           scanning = true;
           setStatus("カメラ起動");
           hideCameraGuide();
@@ -1249,6 +1306,7 @@
       });
 
       exportBtn.addEventListener("click", exportCsv);
+      copyBtn.addEventListener("click", copyToClipboard);
       addBtn.addEventListener("click", addCurrentCode);
       clearCurrentBtn.addEventListener("click", clearCurrent);
 
@@ -1257,6 +1315,7 @@
         inventory.clear();
         renderTable();
         setStatus("全削除");
+        setLastInfo("前回 一覧を全削除");
       });
 
       manualCode.addEventListener("keydown", e => {
@@ -1340,6 +1399,7 @@
 
       renderTable();
       updateMasterSummary();
+      setLastInfo("前回 -");
 
       (async () => {
         const ok = await autoLoadMasterCsv();
@@ -1357,6 +1417,3 @@
   </script>
 </body>
 </html>
-
-
-
