@@ -14,6 +14,7 @@
       --muted:#98a6d8;
       --ok:#79f0b4;
       --danger:#ff7c92;
+      --warn:#ffd36e;
     }
     *{box-sizing:border-box}
     html,body{height:100%}
@@ -201,14 +202,31 @@
       background:#162344;
     }
 
+    #manualCode,#manualName{
+      font-size:14px;
+    }
+
     .summary{
       display:grid;
-      grid-template-columns: 1fr auto auto auto;
+      grid-template-columns: 1fr auto;
       gap:8px;
       align-items:center;
       margin-top:8px;
       font-size:13px;
       color:var(--muted);
+    }
+
+    .hint-start{
+      color:#fff;
+      background:linear-gradient(135deg, rgba(255,211,110,.22), rgba(255,211,110,.10));
+      border:1px solid rgba(255,211,110,.45);
+      padding:10px 12px;
+      border-radius:12px;
+      font-weight:800;
+    }
+
+    .hint-cancel{
+      text-align:right;
     }
 
     .list{
@@ -319,6 +337,20 @@
       font-weight:900;
     }
 
+    .sheet-help{
+      margin-top:10px;
+      font-size:13px;
+      color:var(--muted);
+      text-align:center;
+    }
+
+    .sheet-actions{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:8px;
+      margin-top:10px;
+    }
+
     .focus-ring:focus{
       box-shadow:0 0 0 3px rgba(137,168,255,.35);
       border-color:#86a7ff;
@@ -327,7 +359,6 @@
     @media (max-width:780px){
       .controls{grid-template-columns: repeat(3,1fr)}
       .entry{grid-template-columns: 1fr 1.2fr .65fr .8fr}
-      .summary{grid-template-columns: 1fr auto}
       .list{max-height:23dvh}
       button{padding:12px 8px;font-size:14px}
     }
@@ -340,7 +371,7 @@
       <div id="scanBox" class="scan-box"></div>
 
       <div class="topbar">
-        <div id="status" class="badge status">待機中</div>
+        <div id="status" class="badge status">開始を押してカメラを起動してね</div>
         <div class="badge">件数 <span id="itemCount">0</span></div>
         <div class="badge">合計 <span id="totalQty">0</span></div>
         <div class="badge">マスタ <span id="masterCount">0</span></div>
@@ -354,7 +385,7 @@
         <button id="startBtn" class="primary">開始</button>
         <button id="stopBtn">停止</button>
         <button id="switchBtn">切替</button>
-        <button id="exportBtn" class="ok">CSV</button>
+        <button id="exportBtn" class="ok">CSV出力</button>
         <button id="resetBtn" class="danger">全削除</button>
       </div>
 
@@ -373,10 +404,8 @@
       </div>
 
       <div class="summary">
-        <div id="smallStatus">準備OK</div>
-        <div id="cameraState">CAM:OFF</div>
-        <div id="masterState">MASTER:未読込</div>
-        <div>同一JANは加算</div>
+        <div id="smallStatus" class="hint-start">最初に「開始」を押してね</div>
+        <div id="cancelHint" class="hint-cancel">入力待ちは外側タップ / キャンセルで閉じる</div>
       </div>
 
       <div class="list">
@@ -415,6 +444,12 @@
           <button data-key="0">0</button>
           <button id="sheetCloseBtn">閉じる</button>
         </div>
+
+        <div class="sheet-help">外側タップでもキャンセルできるよ</div>
+        <div class="sheet-actions">
+          <button id="sheetCancelBtn">キャンセル</button>
+          <button id="sheetClearBtn">入力クリア</button>
+        </div>
       </div>
     </div>
   </div>
@@ -426,8 +461,6 @@
       const video = document.getElementById("video");
       const statusEl = document.getElementById("status");
       const smallStatusEl = document.getElementById("smallStatus");
-      const cameraStateEl = document.getElementById("cameraState");
-      const masterStateEl = document.getElementById("masterState");
       const flashEl = document.getElementById("flash");
       const scanBoxEl = document.getElementById("scanBox");
 
@@ -456,6 +489,8 @@
       const sheetQty = document.getElementById("sheetQty");
       const sheetAddBtn = document.getElementById("sheetAddBtn");
       const sheetCloseBtn = document.getElementById("sheetCloseBtn");
+      const sheetCancelBtn = document.getElementById("sheetCancelBtn");
+      const sheetClearBtn = document.getElementById("sheetClearBtn");
 
       let stream = null;
       let detector = null;
@@ -467,7 +502,6 @@
       let flashTimer = 0;
       let autoOpenQtySheet = true;
 
-      // 誤読対策
       let candidateCode = "";
       let candidateCount = 0;
       const REQUIRED_CONSECUTIVE_DETECTIONS = 2;
@@ -475,14 +509,19 @@
 
       let audioCtx = null;
 
-      // code -> { name, qty }
       const inventory = new Map();
-      // code -> name
       const productMaster = new Map();
 
       function setStatus(msg) {
         statusEl.textContent = msg;
         smallStatusEl.textContent = msg;
+      }
+
+      function setStartHint(active) {
+        smallStatusEl.className = active ? "hint-start" : "";
+        smallStatusEl.textContent = active
+          ? "最初に「開始」を押してね"
+          : "入力待ちは外側タップ / キャンセルで閉じる";
       }
 
       function normalizeCode(code) {
@@ -508,7 +547,6 @@
 
       function updateMasterSummary() {
         masterCount.textContent = String(productMaster.size);
-        masterStateEl.textContent = productMaster.size ? `MASTER:${productMaster.size}件` : "MASTER:未読込";
       }
 
       function updateSummary() {
@@ -520,7 +558,7 @@
 
       function renderTable() {
         tbody.innerHTML = "";
-        const entries = [...inventory.entries()].reverse(); // 新しいものほど上
+        const entries = [...inventory.entries()].reverse();
 
         if (!entries.length) {
           const tr = document.createElement("tr");
@@ -693,6 +731,19 @@
         qtySheet.classList.remove("show");
       }
 
+      function cancelInputWait() {
+        setDetectedFields("", "");
+        qtyInput.value = "1";
+        closeQtySheet();
+        setStatus("入力待ちをキャンセル");
+      }
+
+      function clearSheetInputs() {
+        sheetNameInput.value = "";
+        sheetQty.value = "1";
+        sheetNameInput.focus({ preventScroll: true });
+      }
+
       function applyDetectedCode(code) {
         const matchedName = getMasterName(code);
         setDetectedFields(code, matchedName);
@@ -736,7 +787,7 @@
         if (current) {
           current.qty += qty;
           if (name) current.name = name;
-          touchInventoryOrder(code, current); // 直近登録を一番新しく
+          touchInventoryOrder(code, current);
         } else {
           inventory.set(code, { name: name || "", qty });
         }
@@ -800,7 +851,7 @@
 
       function exportCsv() {
         const rows = [["JAN", "商品名", "個数"]];
-        for (const [code, row] of inventory.entries()) { // 読み込んだ順のまま
+        for (const [code, row] of inventory.entries()) {
           rows.push([code, row.name || "", String(row.qty)]);
         }
 
@@ -903,7 +954,7 @@
           updateMasterSummary();
           setStatus(`master.csv 読込完了: ${productMaster.size}件`);
           if (result.skipped) {
-            smallStatusEl.textContent += ` / スキップ ${result.skipped}`;
+            statusEl.textContent += ` / スキップ ${result.skipped}`;
           }
           return true;
         } catch (err) {
@@ -997,8 +1048,8 @@
           video.srcObject = stream;
           await video.play();
           scanning = true;
-          cameraStateEl.textContent = "CAM:ON";
           setStatus("カメラ起動");
+          setStartHint(false);
           scanLoop();
         } catch (err) {
           console.error(err);
@@ -1011,7 +1062,6 @@
 
       function stopCamera() {
         scanning = false;
-        cameraStateEl.textContent = "CAM:OFF";
         candidateCode = "";
         candidateCount = 0;
 
@@ -1026,6 +1076,8 @@
           for (const track of stream.getTracks()) track.stop();
           stream = null;
         }
+
+        setStartHint(true);
       }
 
       async function scanLoop() {
@@ -1071,6 +1123,7 @@
       }
 
       startBtn.addEventListener("click", startCamera);
+
       stopBtn.addEventListener("click", () => {
         stopCamera();
         setStatus("カメラ停止");
@@ -1143,9 +1196,11 @@
 
       sheetAddBtn.addEventListener("click", addFromSheet);
       sheetCloseBtn.addEventListener("click", closeQtySheet);
+      sheetCancelBtn.addEventListener("click", cancelInputWait);
+      sheetClearBtn.addEventListener("click", clearSheetInputs);
 
       qtySheet.addEventListener("click", e => {
-        if (e.target === qtySheet) closeQtySheet();
+        if (e.target === qtySheet) cancelInputWait();
       });
 
       document.querySelectorAll("[data-setqty]").forEach(btn => {
@@ -1171,11 +1226,14 @@
 
       renderTable();
       updateMasterSummary();
+      setStartHint(true);
 
       (async () => {
         const ok = await autoLoadMasterCsv();
         if (!ok) {
-          setStatus(window.isSecureContext ? "準備OK / master.csv を置いてね" : "HTTPSで開いてね");
+          setStatus(window.isSecureContext ? "master.csv を確認してね / そのあと開始を押してね" : "HTTPSで開いてね");
+        } else {
+          setStatus("master.csv 読込OK / 次は開始を押してね");
         }
       })();
     })();
