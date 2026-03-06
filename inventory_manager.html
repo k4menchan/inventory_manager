@@ -12,9 +12,7 @@
       --line:#2b3768;
       --text:#eef3ff;
       --muted:#98a6d8;
-      --acc:#89a8ff;
       --ok:#79f0b4;
-      --warn:#ffd36e;
       --danger:#ff7c92;
     }
     *{box-sizing:border-box}
@@ -26,6 +24,7 @@
       font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
       overflow:hidden;
     }
+
     .app{
       height:100dvh;
       display:grid;
@@ -33,6 +32,7 @@
       gap:8px;
       padding:8px;
     }
+
     .camera{
       position:relative;
       min-height:0;
@@ -41,6 +41,7 @@
       border-radius:18px;
       overflow:hidden;
     }
+
     video{
       width:100%;
       height:100%;
@@ -48,6 +49,7 @@
       display:block;
       background:#000;
     }
+
     .scan-box{
       position:absolute;
       left:7%;
@@ -65,6 +67,7 @@
       transform:scale(1.02);
       box-shadow:0 0 0 9999px rgba(0,0,0,.20), 0 0 0 4px rgba(255,242,125,.25) inset;
     }
+
     .topbar{
       position:absolute;
       top:8px;
@@ -76,6 +79,7 @@
       z-index:3;
       flex-wrap:wrap;
     }
+
     .badge{
       background:rgba(9,13,27,.72);
       backdrop-filter:blur(8px);
@@ -87,12 +91,14 @@
       font-weight:700;
       white-space:nowrap;
     }
+
     .status{
       flex:1;
       min-width:0;
       overflow:hidden;
       text-overflow:ellipsis;
     }
+
     .flash{
       position:absolute;
       left:50%;
@@ -118,29 +124,27 @@
       opacity:1;
       transform:translateX(-50%) translateY(0);
     }
+
     .panel{
       background:rgba(18,25,51,.96);
       border:1px solid var(--line);
       border-radius:18px;
       padding:8px;
     }
+
     .controls{
       display:grid;
-      grid-template-columns: repeat(6,1fr);
+      grid-template-columns: repeat(5,1fr);
       gap:8px;
     }
-    .master-row{
-      display:grid;
-      grid-template-columns: 1.3fr .8fr .8fr;
-      gap:8px;
-      margin-top:8px;
-    }
+
     .entry{
       display:grid;
-      grid-template-columns: 1.2fr 1.5fr .7fr .8fr;
+      grid-template-columns: 1.05fr 1.5fr .7fr .8fr;
       gap:8px;
       margin-top:8px;
     }
+
     button,input{
       width:100%;
       min-width:0;
@@ -149,6 +153,7 @@
       border-radius:14px;
       font:inherit;
     }
+
     button{
       padding:13px 10px;
       font-weight:800;
@@ -171,6 +176,7 @@
       color:#fff;
       border:none;
     }
+
     input{
       padding:14px 12px;
       color:var(--text);
@@ -178,19 +184,23 @@
       border:1px solid var(--line);
       text-align:center;
     }
+
     #lastCode,#sheetCode{
       font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
       font-size:15px;
     }
+
     #productName{
       text-align:left;
       font-size:14px;
     }
+
     #qtyInput,#sheetQty{
       font-size:24px;
       font-weight:900;
       background:#162344;
     }
+
     .summary{
       display:grid;
       grid-template-columns: 1fr auto auto auto;
@@ -200,6 +210,7 @@
       font-size:13px;
       color:var(--muted);
     }
+
     .list{
       margin-top:8px;
       max-height:25dvh;
@@ -208,22 +219,27 @@
       border-radius:14px;
       background:#0f1630;
     }
+
     table{
       width:100%;
       border-collapse:collapse;
       font-size:14px;
     }
+
     td{
       border-bottom:1px solid #202b54;
       padding:10px 8px;
       vertical-align:middle;
     }
     tr:last-child td{border-bottom:none}
+
     .mono{
       font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
       word-break:break-all;
     }
+
     .right{text-align:right}
+
     .mini-actions{
       display:flex;
       gap:6px;
@@ -235,6 +251,7 @@
       min-height:unset;
       font-size:13px;
     }
+
     .qty-sheet{
       position:fixed;
       inset:0;
@@ -252,6 +269,7 @@
       opacity:1;
       pointer-events:auto;
     }
+
     .qty-card{
       width:min(620px,100%);
       background:#121933;
@@ -260,17 +278,20 @@
       padding:14px;
       box-shadow:0 20px 50px rgba(0,0,0,.35);
     }
+
     .qty-title{
       font-size:13px;
       color:var(--muted);
       margin-bottom:6px;
     }
+
     .qty-code{
       font-size:16px;
       font-weight:800;
       word-break:break-all;
       margin-bottom:8px;
     }
+
     .qty-name{
       font-size:14px;
       margin-bottom:10px;
@@ -278,12 +299,14 @@
       min-height:20px;
       word-break:break-word;
     }
+
     .qty-row{
       display:grid;
       grid-template-columns: 1.2fr .8fr .8fr;
       gap:8px;
       margin-top:10px;
     }
+
     .qty-pad{
       display:grid;
       grid-template-columns:repeat(3,1fr);
@@ -295,13 +318,14 @@
       font-size:20px;
       font-weight:900;
     }
+
     .focus-ring:focus{
       box-shadow:0 0 0 3px rgba(137,168,255,.35);
       border-color:#86a7ff;
     }
+
     @media (max-width:780px){
       .controls{grid-template-columns: repeat(3,1fr)}
-      .master-row{grid-template-columns: 1fr 1fr 1fr}
       .entry{grid-template-columns: 1fr 1.2fr .65fr .8fr}
       .summary{grid-template-columns: 1fr auto}
       .list{max-height:23dvh}
@@ -331,17 +355,7 @@
         <button id="stopBtn">停止</button>
         <button id="switchBtn">切替</button>
         <button id="exportBtn" class="ok">CSV</button>
-        <button id="saveMasterBtn">マスタ保存</button>
-        <button id="clearMasterBtn" class="danger">マスタ消去</button>
-      </div>
-
-      <div class="master-row">
-        <input id="masterFileName" readonly placeholder="master.csv を選択" />
-        <label>
-          <input id="masterFile" type="file" accept=".csv,text/csv" style="display:none">
-          <button id="pickMasterBtn" type="button">CSV選択</button>
-        </label>
-        <button id="loadSampleBtn" type="button">読込テスト</button>
+        <button id="resetBtn" class="danger">全削除</button>
       </div>
 
       <div class="entry">
@@ -355,7 +369,7 @@
         <input id="manualCode" class="focus-ring" inputmode="numeric" placeholder="手入力コード" />
         <input id="manualName" class="focus-ring" placeholder="商品名手入力(任意)" />
         <button id="clearCurrentBtn">クリア</button>
-        <button id="resetBtn" class="danger">全削除</button>
+        <div></div>
       </div>
 
       <div class="summary">
@@ -421,16 +435,9 @@
       const stopBtn = document.getElementById("stopBtn");
       const switchBtn = document.getElementById("switchBtn");
       const exportBtn = document.getElementById("exportBtn");
-      const saveMasterBtn = document.getElementById("saveMasterBtn");
-      const clearMasterBtn = document.getElementById("clearMasterBtn");
       const addBtn = document.getElementById("addBtn");
       const clearCurrentBtn = document.getElementById("clearCurrentBtn");
       const resetBtn = document.getElementById("resetBtn");
-
-      const masterFile = document.getElementById("masterFile");
-      const pickMasterBtn = document.getElementById("pickMasterBtn");
-      const loadSampleBtn = document.getElementById("loadSampleBtn");
-      const masterFileName = document.getElementById("masterFileName");
 
       const lastCode = document.getElementById("lastCode");
       const productName = document.getElementById("productName");
@@ -460,12 +467,10 @@
       let flashTimer = 0;
       let autoOpenQtySheet = true;
 
-      // inventory: code -> { name, qty }
+      // code -> { name, qty }
       const inventory = new Map();
-      // productMaster: code -> name
+      // code -> name
       const productMaster = new Map();
-
-      const LS_MASTER_KEY = "inventory_master_v1";
 
       function setStatus(msg) {
         statusEl.textContent = msg;
@@ -536,6 +541,7 @@
 
           const tdActions = document.createElement("td");
           tdActions.style.width = "20%";
+
           const wrap = document.createElement("div");
           wrap.className = "mini-actions";
 
@@ -600,6 +606,7 @@
         sheetNameInput.value = name || "";
         sheetQty.value = qtyInput.value || "1";
         qtySheet.classList.add("show");
+
         setTimeout(() => {
           if (sheetNameInput.value) {
             sheetQty.focus({ preventScroll: true });
@@ -619,6 +626,7 @@
         const matchedName = getMasterName(code);
         setDetectedFields(code, matchedName);
         qtyInput.value = "1";
+
         showFlash(matchedName ? `読取 ${code}` : `読取 ${code} / 名称未登録`);
         vibrateHit();
         setStatus(matchedName ? `読取成功: ${code}` : `読取成功: ${code}（商品名未登録）`);
@@ -732,6 +740,7 @@
         const out = [];
         let cur = "";
         let inQuotes = false;
+
         for (let i = 0; i < line.length; i++) {
           const ch = line[i];
           if (ch === '"') {
@@ -781,14 +790,22 @@
         return { ok: true, map, skipped };
       }
 
-      async function importMasterFile(file) {
+      async function autoLoadMasterCsv() {
         try {
-          const text = await file.text();
+          const masterUrl = new URL("master.csv", location.href).toString();
+          const res = await fetch(masterUrl, { cache: "no-store" });
+
+          if (!res.ok) {
+            setStatus(`master.csv 取得失敗: ${res.status}`);
+            return false;
+          }
+
+          const text = await res.text();
           const result = parseCsv(text);
 
           if (!result.ok) {
-            setStatus(`マスタ読込失敗: ${result.error}`);
-            return;
+            setStatus(`master.csv 読込失敗: ${result.error}`);
+            return false;
           }
 
           productMaster.clear();
@@ -796,49 +813,17 @@
             productMaster.set(code, name);
           }
 
-          masterFileName.value = file.name || "master.csv";
           updateMasterSummary();
-          setStatus(`マスタ読込完了: ${productMaster.size}件`);
+          setStatus(`master.csv 読込完了: ${productMaster.size}件`);
           if (result.skipped) {
             smallStatusEl.textContent += ` / スキップ ${result.skipped}`;
           }
-        } catch (err) {
-          console.error(err);
-          setStatus("マスタ読込失敗");
-        }
-      }
-
-      function saveMasterToLocal() {
-        const arr = [...productMaster.entries()];
-        localStorage.setItem(LS_MASTER_KEY, JSON.stringify(arr));
-        setStatus(`マスタ保存: ${arr.length}件`);
-      }
-
-      function loadMasterFromLocal() {
-        try {
-          const raw = localStorage.getItem(LS_MASTER_KEY);
-          if (!raw) return false;
-          const arr = JSON.parse(raw);
-          productMaster.clear();
-          for (const item of arr) {
-            if (Array.isArray(item) && item.length >= 2) {
-              addOrUpdateMaster(item[0], item[1]);
-            }
-          }
-          updateMasterSummary();
-          setStatus(`保存済みマスタ読込: ${productMaster.size}件`);
           return true;
         } catch (err) {
           console.error(err);
+          setStatus("master.csv 自動読込失敗");
           return false;
         }
-      }
-
-      function clearMasterAll() {
-        productMaster.clear();
-        localStorage.removeItem(LS_MASTER_KEY);
-        updateMasterSummary();
-        setStatus("マスタ消去");
       }
 
       async function initDetector() {
@@ -847,6 +832,7 @@
           setStatus("BarcodeDetector未対応。手入力のみ");
           return false;
         }
+
         try {
           const formats = await window.BarcodeDetector.getSupportedFormats();
           const preferred = ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"];
@@ -942,30 +928,16 @@
         stopCamera();
         setStatus("カメラ停止");
       });
+
       switchBtn.addEventListener("click", async () => {
         useBackCamera = !useBackCamera;
         await startCamera();
       });
+
       exportBtn.addEventListener("click", exportCsv);
-      saveMasterBtn.addEventListener("click", saveMasterToLocal);
-      clearMasterBtn.addEventListener("click", () => {
-        if (!confirm("保存済みマスタも消す？")) return;
-        clearMasterAll();
-      });
-
-      pickMasterBtn.addEventListener("click", () => masterFile.click());
-      masterFile.addEventListener("change", async () => {
-        const file = masterFile.files?.[0];
-        if (!file) return;
-        await importMasterFile(file);
-      });
-
-      loadSampleBtn.addEventListener("click", () => {
-        setStatus("CSV選択 → 読み込みしてね");
-      });
-
       addBtn.addEventListener("click", addCurrentCode);
       clearCurrentBtn.addEventListener("click", clearCurrent);
+
       resetBtn.addEventListener("click", () => {
         if (!confirm("一覧を全削除する？")) return;
         inventory.clear();
@@ -1021,6 +993,7 @@
 
       sheetAddBtn.addEventListener("click", addFromSheet);
       sheetCloseBtn.addEventListener("click", closeQtySheet);
+
       qtySheet.addEventListener("click", e => {
         if (e.target === qtySheet) closeQtySheet();
       });
@@ -1046,9 +1019,13 @@
 
       renderTable();
       updateMasterSummary();
-      if (!loadMasterFromLocal()) {
-        setStatus(window.isSecureContext ? "準備OK / 先にマスタCSV読込がおすすめ" : "HTTPSで開いてね");
-      }
+
+      (async () => {
+        const ok = await autoLoadMasterCsv();
+        if (!ok) {
+          setStatus(window.isSecureContext ? "準備OK / master.csv を置いてね" : "HTTPSで開いてね");
+        }
+      })();
     })();
   </script>
 </body>
