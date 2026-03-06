@@ -14,7 +14,6 @@
       --muted:#98a6d8;
       --ok:#79f0b4;
       --danger:#ff7c92;
-      --warn:#ffd36e;
     }
     *{box-sizing:border-box}
     html,body{height:100%}
@@ -29,7 +28,7 @@
     .app{
       height:100dvh;
       display:grid;
-      grid-template-rows: 1fr auto auto;
+      grid-template-rows: 1fr auto;
       gap:8px;
       padding:8px;
     }
@@ -51,12 +50,13 @@
       background:#000;
     }
 
+    /* 見た目の枠。実際の検出範囲にかなり近づけてある */
     .scan-box{
       position:absolute;
-      left:7%;
-      right:7%;
-      top:20%;
-      bottom:28%;
+      left:16%;
+      right:16%;
+      top:28%;
+      bottom:34%;
       border:3px solid rgba(121,240,180,.95);
       border-radius:18px;
       box-shadow:0 0 0 9999px rgba(0,0,0,.23);
@@ -124,6 +124,33 @@
     .flash.show{
       opacity:1;
       transform:translateX(-50%) translateY(0);
+    }
+
+    .camera-guide{
+      position:absolute;
+      left:50%;
+      bottom:16px;
+      transform:translateX(-50%);
+      max-width:92vw;
+      padding:10px 14px;
+      border-radius:14px;
+      background:rgba(9,13,27,.82);
+      backdrop-filter:blur(8px);
+      border:1px solid rgba(255,255,255,.14);
+      color:#fff;
+      font-size:14px;
+      font-weight:800;
+      text-align:center;
+      z-index:6;
+      opacity:0;
+      pointer-events:none;
+      transition:.18s ease;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .camera-guide.show{
+      opacity:1;
     }
 
     .panel{
@@ -204,29 +231,6 @@
 
     #manualCode,#manualName{
       font-size:14px;
-    }
-
-    .summary{
-      display:grid;
-      grid-template-columns: 1fr auto;
-      gap:8px;
-      align-items:center;
-      margin-top:8px;
-      font-size:13px;
-      color:var(--muted);
-    }
-
-    .hint-start{
-      color:#fff;
-      background:linear-gradient(135deg, rgba(255,211,110,.22), rgba(255,211,110,.10));
-      border:1px solid rgba(255,211,110,.45);
-      padding:10px 12px;
-      border-radius:12px;
-      font-weight:800;
-    }
-
-    .hint-cancel{
-      text-align:right;
     }
 
     .list{
@@ -337,13 +341,6 @@
       font-weight:900;
     }
 
-    .sheet-help{
-      margin-top:10px;
-      font-size:13px;
-      color:var(--muted);
-      text-align:center;
-    }
-
     .sheet-actions{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -371,13 +368,14 @@
       <div id="scanBox" class="scan-box"></div>
 
       <div class="topbar">
-        <div id="status" class="badge status">開始を押してカメラを起動してね</div>
+        <div id="status" class="badge status">商品リスト読み込み中...</div>
         <div class="badge">件数 <span id="itemCount">0</span></div>
         <div class="badge">合計 <span id="totalQty">0</span></div>
-        <div class="badge">マスタ <span id="masterCount">0</span></div>
+        <div class="badge">商品リスト <span id="masterCount">0</span></div>
       </div>
 
       <div id="flash" class="flash">読み取り成功</div>
+      <div id="cameraGuide" class="camera-guide show">商品リスト読み込み中...</div>
     </section>
 
     <section class="panel">
@@ -401,11 +399,6 @@
         <input id="manualName" class="focus-ring" placeholder="商品名手入力(任意)" />
         <button id="clearCurrentBtn">クリア</button>
         <div></div>
-      </div>
-
-      <div class="summary">
-        <div id="smallStatus" class="hint-start">最初に「開始」を押してね</div>
-        <div id="cancelHint" class="hint-cancel">入力待ちは外側タップ / キャンセルで閉じる</div>
       </div>
 
       <div class="list">
@@ -445,7 +438,6 @@
           <button id="sheetCloseBtn">閉じる</button>
         </div>
 
-        <div class="sheet-help">外側タップでもキャンセルできるよ</div>
         <div class="sheet-actions">
           <button id="sheetCancelBtn">キャンセル</button>
           <button id="sheetClearBtn">入力クリア</button>
@@ -460,9 +452,9 @@
 
       const video = document.getElementById("video");
       const statusEl = document.getElementById("status");
-      const smallStatusEl = document.getElementById("smallStatus");
       const flashEl = document.getElementById("flash");
       const scanBoxEl = document.getElementById("scanBox");
+      const cameraGuide = document.getElementById("cameraGuide");
 
       const startBtn = document.getElementById("startBtn");
       const stopBtn = document.getElementById("stopBtn");
@@ -492,6 +484,10 @@
       const sheetCancelBtn = document.getElementById("sheetCancelBtn");
       const sheetClearBtn = document.getElementById("sheetClearBtn");
 
+      // 中央切り出し用 canvas
+      const detectCanvas = document.createElement("canvas");
+      const detectCtx = detectCanvas.getContext("2d", { willReadFrequently: true });
+
       let stream = null;
       let detector = null;
       let scanning = false;
@@ -507,6 +503,14 @@
       const REQUIRED_CONSECUTIVE_DETECTIONS = 2;
       const SCAN_COOLDOWN_MS = 2200;
 
+      // 中央だけ読むための切り出し比率
+      const DETECT_REGION = {
+        x: 0.18,
+        y: 0.28,
+        w: 0.64,
+        h: 0.38
+      };
+
       let audioCtx = null;
 
       const inventory = new Map();
@@ -514,14 +518,27 @@
 
       function setStatus(msg) {
         statusEl.textContent = msg;
-        smallStatusEl.textContent = msg;
       }
 
-      function setStartHint(active) {
-        smallStatusEl.className = active ? "hint-start" : "";
-        smallStatusEl.textContent = active
-          ? "最初に「開始」を押してね"
-          : "入力待ちは外側タップ / キャンセルで閉じる";
+      function showCameraGuide(message) {
+        cameraGuide.textContent = message;
+        cameraGuide.classList.add("show");
+      }
+
+      function hideCameraGuide() {
+        cameraGuide.classList.remove("show");
+      }
+
+      function setStartGuide(active) {
+        if (active) {
+          showCameraGuide("商品リスト読み込みOK / 開始を押してね");
+        } else {
+          hideCameraGuide();
+        }
+      }
+
+      function showInputWaitGuide() {
+        showCameraGuide("入力待ち：外側タップで閉じる");
       }
 
       function normalizeCode(code) {
@@ -715,6 +732,7 @@
         sheetNameInput.value = name || "";
         sheetQty.value = qtyInput.value || "1";
         qtySheet.classList.add("show");
+        showInputWaitGuide();
 
         setTimeout(() => {
           if (sheetNameInput.value) {
@@ -729,6 +747,11 @@
 
       function closeQtySheet() {
         qtySheet.classList.remove("show");
+        if (scanning) {
+          hideCameraGuide();
+        } else {
+          setStartGuide(true);
+        }
       }
 
       function cancelInputWait() {
@@ -934,7 +957,7 @@
           const res = await fetch(masterUrl, { cache: "no-store" });
 
           if (!res.ok) {
-            setStatus(`master.csv 取得失敗: ${res.status}`);
+            setStatus(`商品リスト取得失敗: ${res.status}`);
             return false;
           }
 
@@ -942,7 +965,7 @@
           const result = parseCsv(text);
 
           if (!result.ok) {
-            setStatus(`master.csv 読込失敗: ${result.error}`);
+            setStatus(`商品リスト読込失敗: ${result.error}`);
             return false;
           }
 
@@ -952,14 +975,11 @@
           }
 
           updateMasterSummary();
-          setStatus(`master.csv 読込完了: ${productMaster.size}件`);
-          if (result.skipped) {
-            statusEl.textContent += ` / スキップ ${result.skipped}`;
-          }
+          setStatus(`商品リスト読み込みOK: ${productMaster.size}件`);
           return true;
         } catch (err) {
           console.error(err);
-          setStatus("master.csv 自動読込失敗");
+          setStatus("商品リスト自動読込失敗");
           return false;
         }
       }
@@ -1002,6 +1022,38 @@
         if (/^\d{12}$/.test(code)) return validateUPCA(code);
         if (/^\d{8}$/.test(code)) return validateEAN8(code);
         return false;
+      }
+
+      function getDetectRegion(videoEl) {
+        const vw = videoEl.videoWidth || 0;
+        const vh = videoEl.videoHeight || 0;
+        if (!vw || !vh) return null;
+
+        const sx = Math.floor(vw * DETECT_REGION.x);
+        const sy = Math.floor(vh * DETECT_REGION.y);
+        const sw = Math.floor(vw * DETECT_REGION.w);
+        const sh = Math.floor(vh * DETECT_REGION.h);
+
+        return { sx, sy, sw, sh };
+      }
+
+      function drawCenterCropToCanvas(videoEl) {
+        const region = getDetectRegion(videoEl);
+        if (!region || !detectCtx) return null;
+
+        const { sx, sy, sw, sh } = region;
+        if (sw <= 0 || sh <= 0) return null;
+
+        detectCanvas.width = sw;
+        detectCanvas.height = sh;
+        detectCtx.clearRect(0, 0, sw, sh);
+        detectCtx.drawImage(
+          videoEl,
+          sx, sy, sw, sh,
+          0, 0, sw, sh
+        );
+
+        return detectCanvas;
       }
 
       async function initDetector() {
@@ -1049,7 +1101,7 @@
           await video.play();
           scanning = true;
           setStatus("カメラ起動");
-          setStartHint(false);
+          hideCameraGuide();
           scanLoop();
         } catch (err) {
           console.error(err);
@@ -1076,8 +1128,6 @@
           for (const track of stream.getTracks()) track.stop();
           stream = null;
         }
-
-        setStartHint(true);
       }
 
       async function scanLoop() {
@@ -1085,29 +1135,36 @@
 
         try {
           if (detector && video.readyState >= 2 && !qtySheet.classList.contains("show")) {
-            const barcodes = await detector.detect(video);
+            const croppedSource = drawCenterCropToCanvas(video);
 
-            if (barcodes?.length) {
-              const raw = normalizeCode(barcodes[0].rawValue);
-              const now = Date.now();
+            if (croppedSource) {
+              const barcodes = await detector.detect(croppedSource);
 
-              if (raw && isProbablyProductCode(raw) && hasValidCheckDigit(raw)) {
-                if (raw === candidateCode) {
-                  candidateCount += 1;
+              if (barcodes?.length) {
+                const raw = normalizeCode(barcodes[0].rawValue);
+                const now = Date.now();
+
+                if (raw && isProbablyProductCode(raw) && hasValidCheckDigit(raw)) {
+                  if (raw === candidateCode) {
+                    candidateCount += 1;
+                  } else {
+                    candidateCode = raw;
+                    candidateCount = 1;
+                  }
+
+                  if (
+                    candidateCount >= REQUIRED_CONSECUTIVE_DETECTIONS &&
+                    (raw !== lastDetectedRaw || now - lastDetectedAt > SCAN_COOLDOWN_MS)
+                  ) {
+                    lastDetectedRaw = raw;
+                    lastDetectedAt = now;
+                    candidateCode = "";
+                    candidateCount = 0;
+                    applyDetectedCode(raw);
+                  }
                 } else {
-                  candidateCode = raw;
-                  candidateCount = 1;
-                }
-
-                if (
-                  candidateCount >= REQUIRED_CONSECUTIVE_DETECTIONS &&
-                  (raw !== lastDetectedRaw || now - lastDetectedAt > SCAN_COOLDOWN_MS)
-                ) {
-                  lastDetectedRaw = raw;
-                  lastDetectedAt = now;
                   candidateCode = "";
                   candidateCount = 0;
-                  applyDetectedCode(raw);
                 }
               } else {
                 candidateCode = "";
@@ -1127,6 +1184,7 @@
       stopBtn.addEventListener("click", () => {
         stopCamera();
         setStatus("カメラ停止");
+        setStartGuide(true);
       });
 
       switchBtn.addEventListener("click", async () => {
@@ -1226,14 +1284,17 @@
 
       renderTable();
       updateMasterSummary();
-      setStartHint(true);
 
       (async () => {
         const ok = await autoLoadMasterCsv();
         if (!ok) {
-          setStatus(window.isSecureContext ? "master.csv を確認してね / そのあと開始を押してね" : "HTTPSで開いてね");
+          setStatus(window.isSecureContext ? "商品リストの読込に失敗しました" : "HTTPSで開いてね");
+          if (window.isSecureContext) {
+            showCameraGuide("商品リストの読込に失敗しました");
+          }
         } else {
-          setStatus("master.csv 読込OK / 次は開始を押してね");
+          setStatus("商品リスト読み込みOK");
+          showCameraGuide("商品リスト読み込みOK / 開始を押してね");
         }
       })();
     })();
