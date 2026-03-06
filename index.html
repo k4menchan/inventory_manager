@@ -149,8 +149,15 @@
       overflow:hidden;
       text-overflow:ellipsis;
     }
+    
     .camera-guide.show{
       opacity:1;
+    }
+    
+    /* 入力待ち中は上へ移動 */
+    .camera-guide.input-mode{
+      top:56px;
+      bottom:auto;
     }
 
     .panel{
@@ -520,9 +527,17 @@
         statusEl.textContent = msg;
       }
 
-      function showCameraGuide(message) {
+      function showCameraGuide(message, mode = "normal") {
         cameraGuide.textContent = message;
+        setCameraGuideMode(mode);
         cameraGuide.classList.add("show");
+      }
+
+      function setCameraGuideMode(mode = "normal") {
+        cameraGuide.classList.remove("input-mode");
+        if (mode === "input") {
+          cameraGuide.classList.add("input-mode");
+        }
       }
 
       function hideCameraGuide() {
@@ -531,14 +546,14 @@
 
       function setStartGuide(active) {
         if (active) {
-          showCameraGuide("商品リスト読み込みOK / 開始を押してね");
+          showCameraGuide("商品リスト読み込みOK / 開始を押してね", "normal");
         } else {
           hideCameraGuide();
         }
       }
 
       function showInputWaitGuide() {
-        showCameraGuide("入力待ち：外側タップで閉じる");
+        showCameraGuide("外側タップで閉じる", "input");
       }
 
       function normalizeCode(code) {
@@ -747,6 +762,8 @@
 
       function closeQtySheet() {
         qtySheet.classList.remove("show");
+        setCameraGuideMode("normal");
+      
         if (scanning) {
           hideCameraGuide();
         } else {
@@ -758,7 +775,6 @@
         setDetectedFields("", "");
         qtyInput.value = "1";
         closeQtySheet();
-        setStatus("入力待ちをキャンセル");
       }
 
       function clearSheetInputs() {
@@ -1092,13 +1108,18 @@
             audio: false,
             video: {
               facingMode: useBackCamera ? { ideal: "environment" } : { ideal: "user" },
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
+              frameRate: { ideal: 30, max: 30 }
             }
           });
 
           video.srcObject = stream;
           await video.play();
+          const track = stream.getVideoTracks()[0];
+          track.applyConstraints({
+            advanced: [{ focusMode: "continuous" }]
+          });
           scanning = true;
           setStatus("カメラ起動");
           hideCameraGuide();
@@ -1301,4 +1322,5 @@
   </script>
 </body>
 </html>
+
 
