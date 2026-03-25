@@ -75,7 +75,7 @@
       left:8px;
       right:8px;
       display:grid;
-      grid-template-columns:minmax(170px,1.6fr) minmax(140px,1.3fr) repeat(3,minmax(68px,.6fr));
+      grid-template-columns:minmax(150px,1.5fr) minmax(110px,1.1fr) repeat(3,minmax(64px,.55fr));
       gap:8px;
       align-items:stretch;
       z-index:3;
@@ -121,9 +121,6 @@
       white-space:nowrap;
     }
 
-    #lastRegistered{
-      font-size:13px;
-    }
 
     .level-normal{
       border-color:rgba(255,255,255,.12);
@@ -204,46 +201,6 @@
       bottom:auto;
     }
 
-    .camera-recent{
-      position:absolute;
-      left:50%;
-      bottom:66px;
-      transform:translateX(-50%);
-      max-width:92vw;
-      padding:8px 12px;
-      border-radius:14px;
-      background:rgba(9,13,27,.72);
-      backdrop-filter:blur(8px);
-      border:1px solid rgba(255,255,255,.12);
-      color:#fff;
-      font-size:13px;
-      font-weight:700;
-      z-index:6;
-      display:flex;
-      gap:6px;
-      align-items:baseline;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-
-    .recent-label{
-      font-size:10px;
-      opacity:.7;
-      font-weight:700;
-      flex:0 0 auto;
-    }
-
-    #recentText{
-      min-width:0;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-
-    .recent-sep{
-      opacity:.45;
-      flex:0 0 auto;
-    }
 
     .panel{
       background:rgba(18,25,51,.96);
@@ -266,7 +223,7 @@
 
     .entry{
       display:grid;
-      grid-template-columns: 1.05fr 1.5fr .7fr .8fr;
+      grid-template-columns: 1.1fr 1.4fr .55fr .7fr .7fr;
       gap:8px;
       margin-top:8px;
     }
@@ -327,7 +284,7 @@
       background:#162344;
     }
 
-    #manualCode,#manualName{
+    #lastCode,#productName{
       font-size:14px;
     }
 
@@ -456,7 +413,7 @@
         grid-template-columns:1.2fr 1.2fr repeat(3,.7fr);
       }
       .controls{grid-template-columns: repeat(4,1fr)}
-      .entry{grid-template-columns: 1fr 1.2fr .65fr .8fr}
+      .entry{grid-template-columns: 1fr 1.2fr .7fr .75fr .7fr}
       .list{max-height:23dvh}
       button{padding:12px 8px;font-size:14px}
     }
@@ -473,6 +430,14 @@
           <div class="stat-label">ステータス</div>
           <div id="status" class="stat-value">商品リスト読み込み中...</div>
         </div>
+        <div class="stat-card">
+          <div class="stat-label">前回登録</div>
+          <div id="lastRegistered" class="stat-value">-</div>
+        </div>
+        <div class="stat-card stat-small">
+          <div class="stat-label">件数</div>
+          <div id="itemCount" class="stat-value">0</div>
+        </div>
         <div class="stat-card stat-small">
           <div class="stat-label">合計</div>
           <div id="totalQty" class="stat-value">0</div>
@@ -485,7 +450,6 @@
 
       <div id="flash" class="flash">読み取り成功</div>
       <div id="cameraGuide" class="camera-guide show">商品リスト読み込み中...</div>
-      <div id="cameraRecent" class="camera-recent"><span class="recent-label">前回登録</span><span id="recentText">-</span><span class="recent-sep">/</span><span class="recent-label">件数</span><span id="recentCount">0</span></div>
     </section>
 
     <section class="panel">
@@ -500,17 +464,11 @@
       </div>
 
       <div class="entry">
-        <input id="lastCode" class="focus-ring" readonly placeholder="コード" />
+        <input id="lastCode" class="focus-ring" inputmode="numeric" placeholder="コード" />
         <input id="productName" class="focus-ring" placeholder="商品名" />
         <input id="qtyInput" class="focus-ring" type="number" min="1" step="1" value="1" inputmode="numeric" />
         <button id="addBtn" class="ok">登録</button>
-      </div>
-
-      <div class="entry" style="margin-top:8px;">
-        <input id="manualCode" class="focus-ring" inputmode="numeric" placeholder="手入力コード" />
-        <input id="manualName" class="focus-ring" placeholder="商品名手入力(任意)" />
         <button id="clearCurrentBtn">クリア</button>
-        <div></div>
       </div>
 
       <div class="list">
@@ -583,11 +541,8 @@
       const lastCode = document.getElementById("lastCode");
       const productName = document.getElementById("productName");
       const qtyInput = document.getElementById("qtyInput");
-      const manualCode = document.getElementById("manualCode");
-      const manualName = document.getElementById("manualName");
       const tbody = document.getElementById("tbody");
-      const recentText = document.getElementById("recentText");
-      const recentCount = document.getElementById("recentCount");
+      const itemCount = document.getElementById("itemCount");
       const totalQty = document.getElementById("totalQty");
       const masterCount = document.getElementById("masterCount");
 
@@ -688,7 +643,7 @@
         lastRegisteredQty = qty || 0;
         const base = name ? truncateText(name, 20) : (code || "");
         lastRegisteredName = code ? `${base} ×${qty}` : "-";
-        recentText.textContent = lastRegisteredName;
+        if (lastRegisteredEl) lastRegisteredEl.textContent = lastRegisteredName;
       }
 
       function showCameraGuide(message, mode = "normal") {
@@ -756,8 +711,8 @@
       function updateSummary() {
         let total = 0;
         for (const row of inventory.values()) total += row.qty;
+        if (itemCount) itemCount.textContent = String(inventory.size);
         totalQty.textContent = String(total);
-        recentCount.textContent = String(inventory.size);
       }
 
       function renderTable() {
@@ -909,8 +864,6 @@
       function setDetectedFields(code, name = "") {
         lastCode.value = code || "";
         productName.value = name || "";
-        manualCode.value = "";
-        manualName.value = "";
       }
 
       function openQtySheet(code, name) {
@@ -1035,8 +988,8 @@
       }
 
       function addCurrentCode() {
-        const code = normalizeCode(lastCode.value || manualCode.value);
-        const inputName = normalizeName(productName.value || manualName.value || getMasterName(code));
+        const code = normalizeCode(lastCode.value);
+        const inputName = normalizeName(productName.value || getMasterName(code));
         const qty = Math.floor(Number(qtyInput.value));
 
         if (!code) return setStatus("コード未入力");
@@ -1466,13 +1419,13 @@
         renderTable();
         setStatus("全削除", "warning");
       });
-
-      manualCode.addEventListener("keydown", e => {
+      lastCode.addEventListener("keydown", e => {
         if (e.key === "Enter") {
           e.preventDefault();
-          const code = normalizeCode(manualCode.value);
-          const name = normalizeName(manualName.value || getMasterName(code));
-          setDetectedFields(code, name);
+          const code = normalizeCode(lastCode.value);
+          lastCode.value = code;
+          const name = normalizeName(productName.value || getStoredName(code));
+          if (name) productName.value = name;
           if (name) {
             qtyInput.focus({ preventScroll: true });
             qtyInput.select?.();
