@@ -6,1494 +6,240 @@
   <title>在庫管理スキャナ</title>
   <style>
     :root{
-      --bg:#0b1020;
-      --panel:#121933;
-      --panel2:#182140;
-      --line:#2b3768;
-      --text:#eef3ff;
-      --muted:#98a6d8;
-      --ok:#79f0b4;
-      --danger:#ff7c92;
+      --line:#2b3768; --text:#eef3ff; --muted:#98a6d8;
+      --ok:#79f0b4; --danger:#ff7c92; --panel:#121933; --panel2:#182140;
+      --warn:#ffd36e; --alert:#ff9f43;
     }
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0;
-      background:linear-gradient(180deg,#0a0f1f,#121a33);
-      color:var(--text);
-      font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
-      overflow:hidden;
-    }
-
-    .app{
-      height:100dvh;
-      display:grid;
-      grid-template-rows: 1fr auto;
-      gap:8px;
-      padding:8px;
-    }
-
-    .camera{
-      position:relative;
-      min-height:0;
-      background:#000;
-      border:1px solid var(--line);
-      border-radius:18px;
-      overflow:hidden;
-    }
-
-    video{
-      width:100%;
-      height:100%;
-      object-fit:cover;
-      display:block;
-      background:#000;
-    }
-
-    /* 見た目の枠。実際の検出範囲にかなり近づけてある */
-    .scan-box{
-      position:absolute;
-      left:16%;
-      right:16%;
-      top:28%;
-      bottom:34%;
-      border:3px solid rgba(121,240,180,.95);
-      border-radius:18px;
-      box-shadow:0 0 0 9999px rgba(0,0,0,.23);
-      pointer-events:none;
-      transition:.15s ease;
-    }
-    .scan-box.hit{
-      border-color:#fff27d;
-      transform:scale(1.02);
-      box-shadow:0 0 0 9999px rgba(0,0,0,.20), 0 0 0 4px rgba(255,242,125,.25) inset;
-    }
-
-    .topbar{
-      position:absolute;
-      top:8px;
-      left:8px;
-      right:8px;
-      display:flex;
-      gap:8px;
-      align-items:center;
-      z-index:3;
-      flex-wrap:wrap;
-    }
-
-    .badge{
-      background:rgba(9,13,27,.72);
-      backdrop-filter:blur(8px);
-      border:1px solid rgba(255,255,255,.12);
-      color:#fff;
-      border-radius:999px;
-      padding:8px 12px;
-      font-size:13px;
-      font-weight:700;
-      white-space:nowrap;
-    }
-
-    .stat{
-      display:flex;
-      flex-direction:column;
-      align-items:flex-start;
-      justify-content:center;
-      min-height:54px;
-      gap:2px;
-      min-width:88px;
-    }
-
-    .stat-status{
-      flex:1;
-      min-width:180px;
-      max-width:100%;
-      border-radius:18px;
-    }
-
-    .stat-label{
-      font-size:10px;
-      line-height:1;
-      opacity:.65;
-    }
-
-    .stat-value{
-      font-size:14px;
-      font-weight:800;
-      line-height:1.2;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      white-space:nowrap;
-      max-width:100%;
-    }
-
-    .status{
-      width:100%;
-    }
-
-    .flash{
-      position:absolute;
-      left:50%;
-      top:16px;
-      transform:translateX(-50%) translateY(-12px);
-      background:linear-gradient(135deg,#8cffc7,#fff089);
-      color:#08150e;
-      padding:12px 18px;
-      border-radius:999px;
-      font-weight:900;
-      font-size:18px;
-      box-shadow:0 12px 30px rgba(0,0,0,.28);
-      opacity:0;
-      pointer-events:none;
-      z-index:5;
-      transition:.2s ease;
-      max-width:92vw;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-    .flash.show{
-      opacity:1;
-      transform:translateX(-50%) translateY(0);
-    }
-
-    .camera-guide{
-      position:absolute;
-      left:50%;
-      bottom:16px;
-      transform:translateX(-50%);
-      max-width:92vw;
-      padding:10px 14px;
-      border-radius:14px;
-      background:rgba(9,13,27,.82);
-      backdrop-filter:blur(8px);
-      border:1px solid rgba(255,255,255,.14);
-      color:#fff;
-      font-size:14px;
-      font-weight:800;
-      text-align:center;
-      z-index:6;
-      opacity:0;
-      pointer-events:none;
-      transition:.18s ease;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-    
-    .camera-guide.show{
-      opacity:1;
-    }
-    
-    /* 入力待ち中は上へ移動 */
-    .camera-guide.input-mode{
-      top:56px;
-      bottom:auto;
-    }
-
-    .panel{
-      background:rgba(18,25,51,.96);
-      border:1px solid var(--line);
-      border-radius:18px;
-      padding:8px;
-    }
-
-    .controls{
-      display:grid;
-      grid-template-columns: repeat(6,1fr);
-      gap:8px;
-    }
-
-    .mode-row{
-      display:grid;
-      grid-template-columns: 1.05fr 1.5fr .7fr .8fr;
-      gap:8px;
-      margin-top:6px;
-    }
-
-    .mode-row .spacer{
-      min-height:1px;
-    }
-
-    .entry{
-      display:grid;
-      grid-template-columns: 1.05fr 1.5fr .7fr .8fr;
-      gap:8px;
-      margin-top:8px;
-    }
-
-    button,input{
-      width:100%;
-      min-width:0;
-      border:none;
-      outline:none;
-      border-radius:14px;
-      font:inherit;
-    }
-
-    button{
-      padding:13px 10px;
-      font-weight:800;
-      color:var(--text);
-      background:var(--panel2);
-      border:1px solid var(--line);
-    }
-    button.primary{
-      background:linear-gradient(135deg,#8babff,#9ff7ff);
-      color:#09111f;
-      border:none;
-    }
-    button.ok{
-      background:linear-gradient(135deg,#86ffc2,#73ebb6);
-      color:#082317;
-      border:none;
-    }
-    button.danger{
-      background:linear-gradient(135deg,#ffa1b1,#ff7c92);
-      color:#fff;
-      border:none;
-    }
-
-    input{
-      padding:14px 12px;
-      color:var(--text);
-      background:#101830;
-      border:1px solid var(--line);
-      text-align:center;
-    }
-
-    #lastCode,#sheetCode{
-      font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-      font-size:15px;
-    }
-
-    #productName{
-      text-align:left;
-      font-size:14px;
-    }
-
-    #qtyInput,#sheetQty{
-      font-size:24px;
-      font-weight:900;
-      background:#162344;
-    }
-
-    
-    .list{
-      margin-top:8px;
-      max-height:25dvh;
-      overflow:auto;
-      border:1px solid var(--line);
-      border-radius:14px;
-      background:#0f1630;
-    }
-
-    table{
-      width:100%;
-      border-collapse:collapse;
-      font-size:14px;
-    }
-
-    td{
-      border-bottom:1px solid #202b54;
-      padding:10px 8px;
-      vertical-align:middle;
-    }
-    tr:last-child td{border-bottom:none}
-
-    .mono{
-      font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-      word-break:break-all;
-    }
-
-    .right{text-align:right}
-
-    .mini-actions{
-      display:flex;
-      gap:6px;
-      justify-content:flex-end;
-    }
-    .mini-actions button{
-      width:auto;
-      padding:8px 10px;
-      min-height:unset;
-      font-size:13px;
-    }
-
-    .qty-sheet{
-      position:fixed;
-      inset:0;
-      background:rgba(0,0,0,.45);
-      display:flex;
-      align-items:flex-end;
-      justify-content:center;
-      padding:10px;
-      opacity:0;
-      pointer-events:none;
-      transition:.18s ease;
-      z-index:20;
-    }
-    .qty-sheet.show{
-      opacity:1;
-      pointer-events:auto;
-    }
-
-    .qty-card{
-      width:min(620px,100%);
-      background:#121933;
-      border:1px solid var(--line);
-      border-radius:22px 22px 16px 16px;
-      padding:14px;
-      box-shadow:0 20px 50px rgba(0,0,0,.35);
-    }
-
-    .qty-title{
-      font-size:13px;
-      color:var(--muted);
-      margin-bottom:6px;
-    }
-
-    .qty-code{
-      font-size:16px;
-      font-weight:800;
-      word-break:break-all;
-      margin-bottom:8px;
-    }
-
-    .qty-name{
-      font-size:14px;
-      margin-bottom:10px;
-      color:#dfe7ff;
-      min-height:20px;
-      word-break:break-word;
-    }
-
-    .qty-row{
-      display:grid;
-      grid-template-columns: 1.2fr .8fr .8fr;
-      gap:8px;
-      margin-top:10px;
-    }
-
-    .qty-pad{
-      display:grid;
-      grid-template-columns:repeat(3,1fr);
-      gap:8px;
-      margin-top:10px;
-    }
-    .qty-pad button{
-      padding:16px 8px;
-      font-size:20px;
-      font-weight:900;
-    }
-
-    .sheet-actions{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:8px;
-      margin-top:10px;
-    }
-
-    .focus-ring:focus{
-      box-shadow:0 0 0 3px rgba(137,168,255,.35);
-      border-color:#86a7ff;
-    }
-
-    @media (max-width:780px){
-      .controls{grid-template-columns: repeat(3,1fr)}
-      .entry{grid-template-columns: 1fr 1.2fr .65fr .8fr}
-      .mode-row{grid-template-columns: 1fr 1.2fr .65fr .8fr}
-      .list{max-height:23dvh}
-      button{padding:12px 8px;font-size:14px}
-    }
+    *{box-sizing:border-box} html,body{height:100%}
+    body{margin:0;background:linear-gradient(180deg,#0a0f1f,#121a33);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+    .app{height:100dvh;display:grid;grid-template-rows:1fr auto;gap:8px;padding:8px}
+    .camera{position:relative;min-height:0;background:#000;border:1px solid var(--line);border-radius:18px;overflow:hidden}
+    video{width:100%;height:100%;object-fit:cover;display:block;background:#000}
+    .scan-box{position:absolute;left:12%;right:12%;top:24%;bottom:30%;border:3px solid rgba(121,240,180,.95);border-radius:18px;box-shadow:0 0 0 9999px rgba(0,0,0,.23);pointer-events:none;transition:.15s ease}
+    .scan-box.hit{border-color:#fff27d;transform:scale(1.02);box-shadow:0 0 0 9999px rgba(0,0,0,.20),0 0 0 4px rgba(255,242,125,.25) inset}
+    .topbar{position:absolute;top:8px;left:8px;right:8px;display:flex;gap:8px;align-items:stretch;z-index:3;flex-wrap:wrap}
+    .badge{background:rgba(9,13,27,.72);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:16px;padding:7px 11px}
+    .stat{display:flex;flex-direction:column;justify-content:center;gap:3px;min-height:50px;min-width:86px}
+    .stat.big{flex:1;min-width:200px}
+    .stat-label{font-size:10px;line-height:1;opacity:.65}
+    .stat-value{font-size:14px;font-weight:800;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .flash{position:absolute;left:50%;top:16px;transform:translateX(-50%) translateY(-12px);background:linear-gradient(135deg,#8cffc7,#fff089);color:#08150e;padding:12px 18px;border-radius:999px;font-weight:900;font-size:18px;box-shadow:0 12px 30px rgba(0,0,0,.28);opacity:0;pointer-events:none;z-index:5;transition:.2s ease;max-width:92vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .flash.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .camera-guide{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);max-width:92vw;padding:10px 14px;border-radius:14px;background:rgba(9,13,27,.82);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.14);color:#fff;font-size:14px;font-weight:800;text-align:center;z-index:6;opacity:0;pointer-events:none;transition:.18s ease;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .camera-guide.show{opacity:1}.camera-guide.input-mode{top:56px;bottom:auto}
+    .panel{background:rgba(18,25,51,.96);border:1px solid var(--line);border-radius:18px;padding:8px}
+    .controls{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+    .entry,.subrow{display:grid;grid-template-columns:1.05fr 1.5fr .7fr .8fr;gap:8px;margin-top:8px}
+    button,input{width:100%;min-width:0;border:none;outline:none;border-radius:14px;font:inherit}
+    button{padding:13px 10px;font-weight:800;color:var(--text);background:var(--panel2);border:1px solid var(--line)}
+    button.primary{background:linear-gradient(135deg,#8babff,#9ff7ff);color:#09111f;border:none}
+    button.ok{background:linear-gradient(135deg,#86ffc2,#73ebb6);color:#082317;border:none}
+    button.danger{background:linear-gradient(135deg,#ffa1b1,#ff7c92);color:#fff;border:none}
+    button.warn{background:linear-gradient(135deg,#ffd36e,#ffb347);color:#331c00;border:none}
+    input{padding:14px 12px;color:var(--text);background:#101830;border:1px solid var(--line);text-align:center}
+    #codeInput,#sheetCode{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:15px}
+    #nameInput,#sheetNameInput{text-align:left;font-size:14px}
+    #qtyInput,#sheetQty{font-size:24px;font-weight:900;background:#162344}
+    .spacer{min-height:1px}
+    .list{margin-top:8px;max-height:25dvh;overflow:auto;border:1px solid var(--line);border-radius:14px;background:#0f1630}
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    td{border-bottom:1px solid #202b54;padding:10px 8px;vertical-align:middle} tr:last-child td{border-bottom:none}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-all}.right{text-align:right}
+    .mini-actions{display:flex;gap:6px;justify-content:flex-end}.mini-actions button{width:auto;padding:8px 10px;min-height:unset;font-size:13px}
+    .qty-sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;padding:10px;opacity:0;pointer-events:none;transition:.18s ease;z-index:20}
+    .qty-sheet.show{opacity:1;pointer-events:auto}
+    .qty-card{width:min(620px,100%);background:#121933;border:1px solid var(--line);border-radius:22px 22px 16px 16px;padding:14px;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+    .qty-title{font-size:13px;color:var(--muted);margin-bottom:6px}.qty-code{font-size:16px;font-weight:800;word-break:break-all;margin-bottom:8px}.qty-name{font-size:14px;margin-bottom:10px;color:#dfe7ff;min-height:20px;word-break:break-word}
+    .qty-row{display:grid;grid-template-columns:1.2fr .8fr .8fr;gap:8px;margin-top:10px}
+    .qty-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.qty-pad button{padding:16px 8px;font-size:20px;font-weight:900}
+    .sheet-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+    .focus-ring:focus{box-shadow:0 0 0 3px rgba(137,168,255,.35);border-color:#86a7ff}
+    @media (max-width:780px){.controls{grid-template-columns:repeat(3,1fr)} .entry,.subrow{grid-template-columns:1fr 1.2fr .65fr .8fr} .list{max-height:23dvh} button{padding:12px 8px;font-size:14px}}
   </style>
 </head>
 <body>
-  <div class="app">
-    <section class="camera">
-      <video id="video" playsinline muted autoplay></video>
-      <div id="scanBox" class="scan-box"></div>
+<div class="app">
+  <section class="camera">
+    <video id="video" playsinline muted autoplay></video>
+    <div id="scanBox" class="scan-box"></div>
+    <div class="topbar">
+      <div class="badge stat big"><div class="stat-label">ステータス</div><div id="status" class="stat-value">商品リスト読み込み中...</div></div>
+      <div class="badge stat"><div class="stat-label">件数</div><div id="itemCount" class="stat-value">0</div></div>
+      <div class="badge stat"><div class="stat-label">合計</div><div id="totalQty" class="stat-value">0</div></div>
+      <div class="badge stat"><div class="stat-label">商品リスト</div><div id="masterCount" class="stat-value">0</div></div>
+    </div>
+    <div id="flash" class="flash">読み取り成功</div>
+    <div id="cameraGuide" class="camera-guide show">商品リスト読み込み中...</div>
+  </section>
 
-      <div class="topbar">
-        <div class="badge stat stat-status">
-          <div class="stat-label">ステータス</div>
-          <div id="status" class="stat-value status">商品リスト読み込み中...</div>
-        </div>
-        <div class="badge stat">
-          <div class="stat-label">件数</div>
-          <div id="itemCount" class="stat-value">0</div>
-        </div>
-        <div class="badge stat">
-          <div class="stat-label">合計</div>
-          <div id="totalQty" class="stat-value">0</div>
-        </div>
-        <div class="badge stat">
-          <div class="stat-label">商品リスト</div>
-          <div id="masterCount" class="stat-value">0</div>
-        </div>
+  <section class="panel">
+    <div class="controls">
+      <button id="startBtn" class="primary">開始</button>
+      <button id="stopBtn">停止</button>
+      <button id="switchBtn">切替</button>
+      <button id="exportBtn" class="ok">CSV出力</button>
+      <button id="copyBtn" class="ok">コピー</button>
+      <button id="resetBtn" class="danger">全削除</button>
+    </div>
+
+    <div class="entry">
+      <input id="codeInput" class="focus-ring" inputmode="numeric" placeholder="コード（手入力可）" />
+      <input id="nameInput" class="focus-ring" placeholder="商品名（手入力可）" />
+      <input id="qtyInput" class="focus-ring" type="number" min="1" step="1" value="1" inputmode="numeric" />
+      <button id="addBtn" class="ok">登録</button>
+    </div>
+
+    <div class="subrow">
+      <div class="spacer"></div>
+      <div class="spacer"></div>
+      <button id="clearCurrentBtn">クリア</button>
+      <button id="autoModeBtn" class="warn">連続モード ON</button>
+    </div>
+
+    <div class="list">
+      <table><tbody id="tbody"></tbody></table>
+    </div>
+  </section>
+
+  <div id="qtySheet" class="qty-sheet">
+    <div class="qty-card">
+      <div class="qty-title">読み取ったコード</div>
+      <div id="sheetCode" class="qty-code">-</div>
+      <div id="sheetName" class="qty-name"></div>
+      <div class="qty-row">
+        <input id="sheetNameInput" class="focus-ring" placeholder="商品名" />
+        <input id="sheetQty" class="focus-ring" type="text" value="1" readonly inputmode="none" />
+        <button id="sheetAddBtn" class="ok">登録</button>
       </div>
-
-      <div id="flash" class="flash">読み取り成功</div>
-      <div id="cameraGuide" class="camera-guide show">商品リスト読み込み中...</div>
-    </section>
-
-    <section class="panel">
-      <div class="controls">
-        <button id="startBtn" class="primary">開始</button>
-        <button id="stopBtn">停止</button>
-        <button id="switchBtn">切替</button>
-        <button id="exportBtn" class="ok">CSV出力</button>
-        <button id="copyBtn" class="ok">コピー</button>
-        <button id="resetBtn" class="danger">全削除</button>
+      <div class="qty-pad">
+        <button data-setqty="1">1</button><button data-setqty="5">5</button><button data-setqty="10">10</button>
+        <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button>
+        <button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button>
+        <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button>
+        <button data-key="clear">C</button><button data-key="0">0</button><button id="sheetCloseBtn">閉じる</button>
       </div>
-
-      <div class="entry">
-        <input id="lastCode" class="focus-ring" inputmode="numeric" placeholder="コード（手入力可）" />
-        <input id="productName" class="focus-ring" placeholder="商品名（手入力可）" />
-        <input id="qtyInput" class="focus-ring" type="number" min="1" step="1" value="1" inputmode="numeric" />
-        <button id="addBtn" class="ok">登録</button>
-      </div>
-
-      <div class="mode-row">
-        <div class="spacer"></div>
-        <div class="spacer"></div>
-        <button id="clearCurrentBtn">クリア</button>
-        <button id="autoModeBtn" class="primary">連続モード ON</button>
-      </div>
-
-      <div class="list">
-        <table>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <div id="qtySheet" class="qty-sheet">
-      <div class="qty-card">
-        <div class="qty-title">読み取ったコード</div>
-        <div id="sheetCode" class="qty-code">-</div>
-        <div id="sheetName" class="qty-name"></div>
-
-        <div class="qty-row">
-          <input id="sheetNameInput" class="focus-ring" placeholder="商品名" />
-          <input id="sheetQty" class="focus-ring" type="text" value="1" readonly inputmode="none" />
-          <button id="sheetAddBtn" class="ok">登録</button>
-        </div>
-
-        <div class="qty-pad">
-          <button data-setqty="1">1</button>
-          <button data-setqty="5">5</button>
-          <button data-setqty="10">10</button>
-          <button data-key="1">1</button>
-          <button data-key="2">2</button>
-          <button data-key="3">3</button>
-          <button data-key="4">4</button>
-          <button data-key="5">5</button>
-          <button data-key="6">6</button>
-          <button data-key="7">7</button>
-          <button data-key="8">8</button>
-          <button data-key="9">9</button>
-          <button data-key="clear">C</button>
-          <button data-key="0">0</button>
-          <button id="sheetCloseBtn">閉じる</button>
-        </div>
-
-        <div class="sheet-actions">
-          <button id="sheetCancelBtn">キャンセル</button>
-          <button id="sheetClearBtn">入力クリア</button>
-        </div>
-      </div>
+      <div class="sheet-actions"><button id="sheetCancelBtn">キャンセル</button><button id="sheetClearBtn">入力クリア</button></div>
     </div>
   </div>
-
-  <script>
-    (() => {
-      "use strict";
-
-      const video = document.getElementById("video");
-      const statusEl = document.getElementById("status");
-      const flashEl = document.getElementById("flash");
-      const scanBoxEl = document.getElementById("scanBox");
-      const cameraGuide = document.getElementById("cameraGuide");
-
-      const startBtn = document.getElementById("startBtn");
-      const stopBtn = document.getElementById("stopBtn");
-      const switchBtn = document.getElementById("switchBtn");
-      const exportBtn = document.getElementById("exportBtn");
-      const copyBtn = document.getElementById("copyBtn");
-      const addBtn = document.getElementById("addBtn");
-      const autoModeBtn = document.getElementById("autoModeBtn");
-      const clearCurrentBtn = document.getElementById("clearCurrentBtn");
-      const resetBtn = document.getElementById("resetBtn");
-
-      const lastCode = document.getElementById("lastCode");
-      const productName = document.getElementById("productName");
-      const qtyInput = document.getElementById("qtyInput");
-      const tbody = document.getElementById("tbody");
-      const itemCount = document.getElementById("itemCount");
-      const totalQty = document.getElementById("totalQty");
-      const masterCount = document.getElementById("masterCount");
-
-      const qtySheet = document.getElementById("qtySheet");
-      const sheetCode = document.getElementById("sheetCode");
-      const sheetName = document.getElementById("sheetName");
-      const sheetNameInput = document.getElementById("sheetNameInput");
-      const sheetQty = document.getElementById("sheetQty");
-      const sheetAddBtn = document.getElementById("sheetAddBtn");
-      const sheetCloseBtn = document.getElementById("sheetCloseBtn");
-      const sheetCancelBtn = document.getElementById("sheetCancelBtn");
-      const sheetClearBtn = document.getElementById("sheetClearBtn");
-
-      // 中央切り出し用 canvas
-      const detectCanvas = document.createElement("canvas");
-      const detectCtx = detectCanvas.getContext("2d", { willReadFrequently: true });
-
-      let stream = null;
-      let detector = null;
-      let scanning = false;
-      let rafId = 0;
-      let useBackCamera = true;
-      let lastDetectedRaw = "";
-      let lastDetectedAt = 0;
-      let flashTimer = 0;
-      let autoOpenQtySheet = true;
-      let autoMode = true;
-
-      let candidateCode = "";
-      let candidateCount = 0;
-      const REQUIRED_CONSECUTIVE_DETECTIONS = 2;
-      const SCAN_COOLDOWN_MS = 2200;
-
-      // 中央だけ読むための切り出し比率
-      const DETECT_REGION = {
-        x: 0.10,
-        y: 0.20,
-        w: 0.80,
-        h: 0.55
-      };
-
-      let audioCtx = null;
-
-      let wakeLock = null;
-
-      async function acquireWakeLock() {
-        try {
-          if (!("wakeLock" in navigator)) return;
-          wakeLock = await navigator.wakeLock.request("screen");
-          wakeLock.addEventListener("release", () => {
-            wakeLock = null;
-          });
-        } catch (err) {
-          console.error("Wake Lock error:", err);
-        }
-      }
-      
-      async function releaseWakeLock() {
-        try {
-          if (wakeLock) {
-            await wakeLock.release();
-            wakeLock = null;
-          }
-        } catch (err) {
-          console.error("Wake Lock release error:", err);
-        }
-      }
-      
-      document.addEventListener("visibilitychange", async () => {
-        if (document.visibilityState === "visible" && scanning) {
-          await acquireWakeLock();
-        }
-      });
-
-      const inventory = new Map();
-      const productMaster = new Map();
-
-      function setStatus(msg) {
-        statusEl.textContent = msg;
-      }
-
-      function truncateText(text, max = 20) {
-        const s = String(text || "").trim();
-        return s.length > max ? s.slice(0, max) + "…" : s;
-      }
-
-      function setRegisteredStatus(name, qty, prefix = "登録") {
-        const base = truncateText(name || "商品名未設定", 20);
-        setStatus(`${prefix}: ${base} ×${qty}`);
-      }
-
-      function updateAutoModeButton() {
-        autoModeBtn.textContent = autoMode ? "連続モード ON" : "連続モード OFF";
-        autoModeBtn.className = autoMode ? "ok" : "";
-      }
-
-      function showCameraGuide(message, mode = "normal") {
-        cameraGuide.textContent = message;
-        setCameraGuideMode(mode);
-        cameraGuide.classList.add("show");
-      }
-
-      function setCameraGuideMode(mode = "normal") {
-        cameraGuide.classList.remove("input-mode");
-        if (mode === "input") {
-          cameraGuide.classList.add("input-mode");
-        }
-      }
-
-      function hideCameraGuide() {
-        cameraGuide.classList.remove("show");
-      }
-
-      function setStartGuide(active) {
-        if (active) {
-          showCameraGuide("商品リスト読み込みOK / 開始を押してね", "normal");
-        } else {
-          hideCameraGuide();
-        }
-      }
-
-      function showInputWaitGuide() {
-        showCameraGuide("外側タップで閉じる", "input");
-      }
-
-      function normalizeCode(code) {
-        return String(code || "").replace(/[^\dA-Za-z]/g, "").trim();
-      }
-
-      function normalizeName(name) {
-        return String(name || "").trim();
-      }
-
-      function isProbablyProductCode(code) {
-        return /^\d{8}$/.test(code) || /^\d{12}$/.test(code) || /^\d{13}$/.test(code);
-      }
-
-      function escapeCsv(value) {
-        const s = String(value ?? "");
-        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-      }
-
-      function getMasterName(code) {
-        return productMaster.get(code) || "";
-      }
-
-      function updateMasterSummary() {
-        masterCount.textContent = String(productMaster.size);
-      }
-
-      function updateSummary() {
-        itemCount.textContent = String(inventory.size);
-        let total = 0;
-        for (const row of inventory.values()) total += row.qty;
-        totalQty.textContent = String(total);
-      }
-
-      function renderTable() {
-        tbody.innerHTML = "";
-        const entries = [...inventory.entries()].reverse();
-
-        if (!entries.length) {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `<td colspan="4" style="text-align:center;color:#98a6d8;padding:16px;">まだ登録なし</td>`;
-          tbody.appendChild(tr);
-          updateSummary();
-          return;
-        }
-
-        for (const [code, row] of entries) {
-          const tr = document.createElement("tr");
-
-          const tdCode = document.createElement("td");
-          tdCode.className = "mono";
-          tdCode.style.width = "27%";
-          tdCode.textContent = code;
-
-          const tdName = document.createElement("td");
-          tdName.style.width = "43%";
-          tdName.textContent = row.name || "";
-
-          const tdQty = document.createElement("td");
-          tdQty.className = "right mono";
-          tdQty.style.width = "10%";
-          tdQty.textContent = String(row.qty);
-
-          const tdActions = document.createElement("td");
-          tdActions.style.width = "20%";
-
-          const wrap = document.createElement("div");
-          wrap.className = "mini-actions";
-
-          const plusBtn = document.createElement("button");
-          plusBtn.textContent = "+1";
-          plusBtn.addEventListener("click", () => {
-            row.qty += 1;
-            touchInventoryOrder(code, row);
-            feedbackQty();
-            renderTable();
-          });
-
-          const minusBtn = document.createElement("button");
-          minusBtn.textContent = "-1";
-          minusBtn.addEventListener("click", () => {
-            row.qty -= 1;
-            if (row.qty <= 0) {
-              inventory.delete(code);
-            } else {
-              touchInventoryOrder(code, row);
-            }
-            feedbackQty();
-            renderTable();
-          });
-
-          const delBtn = document.createElement("button");
-          delBtn.textContent = "Del";
-          delBtn.addEventListener("click", () => {
-            inventory.delete(code);
-            renderTable();
-          });
-
-          wrap.append(plusBtn, minusBtn, delBtn);
-          tdActions.appendChild(wrap);
-          tr.append(tdCode, tdName, tdQty, tdActions);
-          tbody.appendChild(tr);
-        }
-
-        updateSummary();
-      }
-
-      function showFlash(text = "読み取り成功") {
-        flashEl.textContent = text;
-        flashEl.classList.add("show");
-        scanBoxEl.classList.add("hit");
-        clearTimeout(flashTimer);
-        flashTimer = setTimeout(() => {
-          flashEl.classList.remove("show");
-          scanBoxEl.classList.remove("hit");
-        }, 900);
-      }
-
-      function vibrate(pattern) {
-        try {
-          if (navigator.vibrate) navigator.vibrate(pattern);
-        } catch {}
-      }
-
-      function ensureAudioContext() {
-        const Ctx = window.AudioContext || window.webkitAudioContext;
-        if (!Ctx) return null;
-        if (!audioCtx) audioCtx = new Ctx();
-        if (audioCtx.state === "suspended") {
-          audioCtx.resume().catch(() => {});
-        }
-        return audioCtx;
-      }
-
-      function playTone(freq = 880, duration = 0.08, type = "sine", gainValue = 0.04, whenOffset = 0) {
-        const ctx = ensureAudioContext();
-        if (!ctx) return;
-        const now = ctx.currentTime + whenOffset;
-
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, now);
-
-        gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.exponentialRampToValueAtTime(gainValue, now + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start(now);
-        osc.stop(now + duration + 0.02);
-      }
-
-      function soundHitMatched() {
-        playTone(1046, 0.06, "triangle", 0.05, 0);
-        playTone(1318, 0.08, "triangle", 0.05, 0.05);
-      }
-
-      function soundHitUnmatched() {
-        playTone(440, 0.10, "sawtooth", 0.04, 0);
-      }
-
-      function soundQty() {
-        playTone(740, 0.04, "square", 0.025, 0);
-      }
-
-      function soundRegistered() {
-        playTone(880, 0.05, "triangle", 0.04, 0);
-        playTone(1174, 0.06, "triangle", 0.045, 0.05);
-        playTone(1567, 0.09, "triangle", 0.05, 0.10);
-      }
-
-      function feedbackQty() {
-        soundQty();
-        vibrate(20);
-      }
-
-      function setDetectedFields(code, name = "") {
-        lastCode.value = code || "";
-        productName.value = name || "";
-      }
-
-      function openQtySheet(code, name) {
-        sheetCode.textContent = code || "-";
-        sheetName.textContent = name || "商品名未登録";
-        sheetNameInput.value = name || "";
-        sheetQty.value = qtyInput.value || "1";
-        qtySheet.classList.add("show");
-        showInputWaitGuide();
-
-        setTimeout(() => {
-          if (!sheetNameInput.value) {
-            sheetNameInput.focus({ preventScroll: true });
-            sheetNameInput.select?.();
-          }
-        }, 30);
-      }
-
-      function closeQtySheet() {
-        qtySheet.classList.remove("show");
-        setCameraGuideMode("normal");
-      
-        if (scanning) {
-          hideCameraGuide();
-        } else {
-          setStartGuide(true);
-        }
-      }
-
-      function cancelInputWait() {
-        setDetectedFields("", "");
-        qtyInput.value = "1";
-        closeQtySheet();
-      }
-
-      function clearSheetInputs() {
-        sheetNameInput.value = "";
-        sheetQty.value = "1";
-        sheetNameInput.focus({ preventScroll: true });
-      }
-
-      function applyDetectedCode(code) {
-        const matchedName = getMasterName(code);
-        const existing = inventory.get(code);
-        const effectiveName = matchedName || existing?.name || "";
-
-        if (autoMode && effectiveName) {
-          addInventory(code, effectiveName, 1);
-          renderTable();
-          updateMasterSummary();
-          showFlash("+1");
-          soundRegistered();
-          vibrate([35, 20, 35]);
-          setRegisteredStatus(effectiveName, 1, "連続登録");
-          return;
-        }
-
-        setDetectedFields(code, effectiveName);
-        qtyInput.value = "1";
-
-        showFlash(effectiveName ? `読取 ${code}` : `読取 ${code} / 名称未登録`);
-        vibrate(effectiveName ? [40, 30, 40] : [120]);
-
-        if (effectiveName) soundHitMatched();
-        else soundHitUnmatched();
-
-        setStatus(effectiveName ? `読取: ${truncateText(effectiveName, 20)}` : `読取成功: ${code}（商品名未登録）`);
-
-        if (autoOpenQtySheet) {
-          openQtySheet(code, effectiveName);
-        } else {
-          if (effectiveName) {
-            productName.focus({ preventScroll: true });
-          } else {
-            productName.focus({ preventScroll: true });
-            productName.select?.();
-          }
-        }
-      }
-
-      function addOrUpdateMaster(code, name) {
-        const cleanCode = normalizeCode(code);
-        const cleanName = normalizeName(name);
-        if (!cleanCode || !cleanName) return;
-        productMaster.set(cleanCode, cleanName);
-      }
-
-      function touchInventoryOrder(code, row) {
-        inventory.delete(code);
-        inventory.set(code, row);
-      }
-
-      function addInventory(code, name, qty) {
-        const current = inventory.get(code);
-        if (current) {
-          current.qty += qty;
-          if (name) current.name = name;
-          touchInventoryOrder(code, current);
-        } else {
-          inventory.set(code, { name: name || "", qty });
-        }
-      }
-
-      function addCurrentCode() {
-        const code = normalizeCode(lastCode.value);
-        const inputName = normalizeName(productName.value || getMasterName(code));
-        const qty = Math.floor(Number(qtyInput.value));
-
-        if (!code) return setStatus("コード未入力");
-        if (!isProbablyProductCode(code)) return setStatus("コード形式が不正っぽい");
-        if (!Number.isFinite(qty) || qty <= 0) return setStatus("数量は1以上");
-        if (!inputName) return setStatus("商品名が空です");
-
-        addOrUpdateMaster(code, inputName);
-        addInventory(code, inputName, qty);
-        renderTable();
-        updateMasterSummary();
-
-        setRegisteredStatus(inputName, qty);
-        showFlash(`登録 ${qty}`);
-        soundRegistered();
-        vibrate([50, 30, 70]);
-
-        setDetectedFields("", "");
-        qtyInput.value = "1";
-        closeQtySheet();
-      }
-
-      function addFromSheet() {
-        const code = normalizeCode(sheetCode.textContent);
-        const name = normalizeName(sheetNameInput.value || getMasterName(code));
-        const qty = Math.floor(Number(sheetQty.value));
-
-        if (!code || !isProbablyProductCode(code)) return setStatus("シート内コードが不正");
-        if (!name) return setStatus("商品名が空です");
-        if (!Number.isFinite(qty) || qty <= 0) return setStatus("数量は1以上");
-
-        addOrUpdateMaster(code, name);
-        addInventory(code, name, qty);
-        renderTable();
-        updateMasterSummary();
-
-        setRegisteredStatus(name, qty);
-        showFlash(`登録 ${qty}`);
-        soundRegistered();
-        vibrate([50, 30, 70]);
-
-        setDetectedFields("", "");
-        qtyInput.value = "1";
-        closeQtySheet();
-      }
-
-      function clearCurrent() {
-        setDetectedFields("", "");
-        qtyInput.value = "1";
-        closeQtySheet();
-        setStatus("クリア");
-      }
-
-      function exportCsv() {
-        const rows = [["JAN", "商品名", "個数"]];
-        for (const [code, row] of inventory.entries()) {
-          rows.push([code, row.name || "", String(row.qty)]);
-        }
-
-        const csv = rows.map(r => r.map(escapeCsv).join(",")).join("\r\n");
-        const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-
-        const d = new Date();
-        const p = n => String(n).padStart(2, "0");
-        const name = `inventory_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.csv`;
-
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = name;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-
-        setStatus(`CSV出力: ${name}`);
-      }
-
-      function copyToClipboard() {
-        if (inventory.size === 0) {
-          setStatus("コピーするデータがないよ");
-          return;
-        }
-
-        const rows = [["JAN", "商品名", "個数"]];
-        for (const [code, row] of inventory.entries()) {
-          rows.push([code, row.name || "", String(row.qty)]);
-        }
-
-        const text = rows.map(r => r.join("	")).join("
-");
-        navigator.clipboard.writeText(text).then(() => {
-          setStatus("コピー完了");
-          showFlash("コピー完了");
-          soundRegistered();
-          vibrate(30);
-        }).catch(() => {
-          setStatus("コピー失敗");
-        });
-      }
-
-      function splitCsvLine(line) {
-        const out = [];
-        let cur = "";
-        let inQuotes = false;
-
-        for (let i = 0; i < line.length; i++) {
-          const ch = line[i];
-          if (ch === '"') {
-            if (inQuotes && line[i + 1] === '"') {
-              cur += '"';
-              i++;
-            } else {
-              inQuotes = !inQuotes;
-            }
-          } else if (ch === "," && !inQuotes) {
-            out.push(cur);
-            cur = "";
-          } else {
-            cur += ch;
-          }
-        }
-        out.push(cur);
-        return out;
-      }
-
-      function parseCsvHeader(text) {
-        const lines = text.replace(/^﻿/, "").split(/
-|
-|
-/);
-        let headerLine = "";
-        let startIndex = 0;
-        for (let i = 0; i < lines.length; i++) {
-          if (lines[i].trim() !== "") {
-            headerLine = lines[i];
-            startIndex = i + 1;
-            break;
-          }
-        }
-        if (!headerLine) return { ok: false, error: "CSVが空です" };
-
-        const header = splitCsvLine(headerLine).map(v => v.trim().toLowerCase());
-        const janIdx = header.findIndex(h => h === "jan" || h === "code");
-        const nameIdx = header.findIndex(h => h === "name" || h === "product" || h === "product_name");
-        if (janIdx === -1 || nameIdx === -1) {
-          return { ok: false, error: "ヘッダは jan,name にしてください" };
-        }
-        return { ok: true, lines, startIndex, janIdx, nameIdx };
-      }
-
-      async function parseCsvAsync(text) {
-        const headerInfo = parseCsvHeader(text);
-        if (!headerInfo.ok) return headerInfo;
-
-        const { lines, startIndex, janIdx, nameIdx } = headerInfo;
-        const map = new Map();
-        let skipped = 0;
-        const chunkSize = 300;
-        const total = Math.max(lines.length - startIndex, 1);
-
-        for (let i = startIndex; i < lines.length; i += chunkSize) {
-          const end = Math.min(i + chunkSize, lines.length);
-          for (let j = i; j < end; j++) {
-            const line = lines[j];
-            if (!line || line.trim() === "") continue;
-            const cols = splitCsvLine(line);
-            const code = normalizeCode(cols[janIdx] ?? "");
-            const name = normalizeName(cols[nameIdx] ?? "");
-            if (!code || !name) {
-              skipped++;
-              continue;
-            }
-            map.set(code, name);
-          }
-          const done = Math.min(end - startIndex, total);
-          if (done < total) {
-            setStatus(`商品リスト読み込み中... ${done}/${total}`);
-            await new Promise(requestAnimationFrame);
-          }
-        }
-
-        return { ok: true, map, skipped };
-      }
-
-      async function autoLoadMasterCsv() {
-        try {
-          const masterUrl = new URL("master.csv", location.href).toString();
-          const res = await fetch(masterUrl, { cache: "no-store" });
-
-          if (!res.ok) {
-            setStatus(`商品リスト取得失敗: ${res.status}`);
-            return false;
-          }
-
-          setStatus("商品リスト読み込み中...");
-          const text = await res.text();
-          const result = await parseCsvAsync(text);
-
-          if (!result.ok) {
-            setStatus(`商品リスト読込失敗: ${result.error}`);
-            return false;
-          }
-
-          productMaster.clear();
-          for (const [code, name] of result.map.entries()) {
-            productMaster.set(code, name);
-          }
-
-          updateMasterSummary();
-          setStatus(`商品リスト読み込みOK: ${productMaster.size}件`);
-          return true;
-        } catch (err) {
-          console.error(err);
-          setStatus("商品リスト自動読込失敗");
-          return false;
-        }
-      }
-
-      function validateEAN13(code) {
-        if (!/^\d{13}$/.test(code)) return false;
-        const digits = code.split("").map(Number);
-        const check = digits.pop();
-        let sum = 0;
-        for (let i = 0; i < digits.length; i++) {
-          sum += digits[i] * (i % 2 === 0 ? 1 : 3);
-        }
-        return (10 - (sum % 10)) % 10 === check;
-      }
-
-      function validateEAN8(code) {
-        if (!/^\d{8}$/.test(code)) return false;
-        const digits = code.split("").map(Number);
-        const check = digits.pop();
-        let sum = 0;
-        for (let i = 0; i < digits.length; i++) {
-          sum += digits[i] * (i % 2 === 0 ? 3 : 1);
-        }
-        return (10 - (sum % 10)) % 10 === check;
-      }
-
-      function validateUPCA(code) {
-        if (!/^\d{12}$/.test(code)) return false;
-        const digits = code.split("").map(Number);
-        const check = digits.pop();
-        let sum = 0;
-        for (let i = 0; i < digits.length; i++) {
-          sum += digits[i] * (i % 2 === 0 ? 3 : 1);
-        }
-        return (10 - (sum % 10)) % 10 === check;
-      }
-
-      function hasValidCheckDigit(code) {
-        if (/^\d{13}$/.test(code)) return validateEAN13(code);
-        if (/^\d{12}$/.test(code)) return validateUPCA(code);
-        if (/^\d{8}$/.test(code)) return validateEAN8(code);
-        return false;
-      }
-
-      function getDetectRegion(videoEl) {
-        const vw = videoEl.videoWidth || 0;
-        const vh = videoEl.videoHeight || 0;
-        if (!vw || !vh) return null;
-
-        const sx = Math.floor(vw * DETECT_REGION.x);
-        const sy = Math.floor(vh * DETECT_REGION.y);
-        const sw = Math.floor(vw * DETECT_REGION.w);
-        const sh = Math.floor(vh * DETECT_REGION.h);
-
-        return { sx, sy, sw, sh };
-      }
-
-      function drawCenterCropToCanvas(videoEl) {
-        const region = getDetectRegion(videoEl);
-        if (!region || !detectCtx) return null;
-
-        const { sx, sy, sw, sh } = region;
-        if (sw <= 0 || sh <= 0) return null;
-
-        detectCanvas.width = sw;
-        detectCanvas.height = sh;
-        detectCtx.clearRect(0, 0, sw, sh);
-        detectCtx.drawImage(
-          videoEl,
-          sx, sy, sw, sh,
-          0, 0, sw, sh
-        );
-
-        return detectCanvas;
-      }
-
-      async function initDetector() {
-        if (!("BarcodeDetector" in window)) {
-          detector = null;
-          setStatus("BarcodeDetector未対応。手入力のみ");
-          return false;
-        }
-
-        try {
-          const formats = await window.BarcodeDetector.getSupportedFormats();
-          const preferred = ["ean_13", "ean_8", "upc_a", "upc_e"];
-          const useFormats = preferred.filter(f => formats.includes(f));
-          detector = new window.BarcodeDetector(useFormats.length ? { formats: useFormats } : undefined);
-          return true;
-        } catch (err) {
-          console.error(err);
-          detector = null;
-          setStatus("BarcodeDetector初期化失敗");
-          return false;
-        }
-      }
-
-      async function startCamera() {
-        stopCamera();
-        ensureAudioContext();
-
-        if (!window.isSecureContext) return setStatus("HTTPSで開いてね");
-        if (!navigator.mediaDevices) return setStatus("mediaDevicesなし");
-        if (!navigator.mediaDevices.getUserMedia) return setStatus("getUserMediaなし");
-
-        await initDetector();
-
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            audio: false,
-            video: {
-              facingMode: useBackCamera ? { ideal: "environment" } : { ideal: "user" },
-              width: { ideal: 1920 },
-              height: { ideal: 1080 },
-              frameRate: { ideal: 30, max: 30 }
-            }
-          });
-
-          video.srcObject = stream;
-          await video.play();
-          const track = stream.getVideoTracks()[0];
-          track.applyConstraints({
-            advanced: [{ focusMode: "continuous" }]
-          });
-          scanning = true;
-          setStatus("カメラ起動");
-          hideCameraGuide();
-          scanLoop();
-        } catch (err) {
-          console.error(err);
-          if (err?.name === "NotAllowedError") setStatus("カメラ権限が拒否された");
-          else if (err?.name === "NotFoundError") setStatus("カメラが見つからない");
-          else if (err?.name === "NotReadableError") setStatus("他アプリがカメラ使用中かも");
-          else setStatus("カメラ起動失敗: " + (err?.name || err));
-        }
-      }
-
-      function stopCamera() {
-        scanning = false;
-        candidateCode = "";
-        candidateCount = 0;
-
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = 0;
-
-        if (video.srcObject) {
-          for (const track of video.srcObject.getTracks()) track.stop();
-          video.srcObject = null;
-        }
-        if (stream) {
-          for (const track of stream.getTracks()) track.stop();
-          stream = null;
-        }
-      }
-
-      async function scanLoop() {
-        if (!scanning) return;
-
-        try {
-          if (detector && video.readyState >= 2 && !qtySheet.classList.contains("show")) {
-            const croppedSource = drawCenterCropToCanvas(video);
-
-            if (croppedSource) {
-              const barcodes = await detector.detect(croppedSource);
-
-              if (barcodes?.length) {
-                const raw = normalizeCode(barcodes[0].rawValue);
-                const now = Date.now();
-
-                if (raw && isProbablyProductCode(raw) && hasValidCheckDigit(raw)) {
-                  if (raw === candidateCode) {
-                    candidateCount += 1;
-                  } else {
-                    candidateCode = raw;
-                    candidateCount = 1;
-                  }
-
-                  if (
-                    candidateCount >= REQUIRED_CONSECUTIVE_DETECTIONS &&
-                    (raw !== lastDetectedRaw || now - lastDetectedAt > SCAN_COOLDOWN_MS)
-                  ) {
-                    lastDetectedRaw = raw;
-                    lastDetectedAt = now;
-                    candidateCode = "";
-                    candidateCount = 0;
-                    applyDetectedCode(raw);
-                  }
-                } else {
-                  candidateCode = "";
-                  candidateCount = 0;
-                }
-              } else {
-                candidateCode = "";
-                candidateCount = 0;
-              }
-            }
-          }
-        } catch (err) {
-          console.error(err);
-        }
-
-        rafId = requestAnimationFrame(scanLoop);
-      }
-
-      startBtn.addEventListener("click", async () => {
-        await startCamera();
-        await acquireWakeLock();
-      });
-
-      stopBtn.addEventListener("click", async () => {
-        stopCamera();
-        await releaseWakeLock();
-        setStatus("カメラ停止");
-        setStartGuide(true);
-      });
-
-      switchBtn.addEventListener("click", async () => {
-        useBackCamera = !useBackCamera;
-        await startCamera();
-      });
-
-      exportBtn.addEventListener("click", exportCsv);
-      copyBtn.addEventListener("click", copyToClipboard);
-      autoModeBtn.addEventListener("click", () => {
-        autoMode = !autoMode;
-        updateAutoModeButton();
-        setStatus(autoMode ? "連続モード ON" : "連続モード OFF");
-      });
-      addBtn.addEventListener("click", addCurrentCode);
-      clearCurrentBtn.addEventListener("click", clearCurrent);
-
-      resetBtn.addEventListener("click", () => {
-        if (!confirm("一覧を全削除する？")) return;
-        inventory.clear();
-        renderTable();
-        setStatus("全削除");
-      });
-      lastCode.addEventListener("keydown", e => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          const code = normalizeCode(lastCode.value);
-          lastCode.value = code;
-          const name = normalizeName(productName.value || getMasterName(code) || inventory.get(code)?.name || "");
-          if (name && !productName.value) productName.value = name;
-          if (name) {
-            qtyInput.focus({ preventScroll: true });
-            qtyInput.select?.();
-          } else {
-            productName.focus({ preventScroll: true });
-            productName.select?.();
-          }
-        }
-      });
-
-      productName.addEventListener("keydown", e => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          qtyInput.focus({ preventScroll: true });
-          qtyInput.select?.();
-        }
-      });
-
-      qtyInput.addEventListener("input", feedbackQty);
-      sheetQty.addEventListener("input", feedbackQty);
-
-      qtyInput.addEventListener("keydown", e => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          addCurrentCode();
-        }
-      });
-
-      sheetNameInput.addEventListener("keydown", e => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          sheetQty.focus({ preventScroll: true });
-          sheetQty.select?.();
-        }
-      });
-
-      sheetQty.addEventListener("keydown", e => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          addFromSheet();
-        }
-      });
-
-      sheetAddBtn.addEventListener("click", addFromSheet);
-      sheetCloseBtn.addEventListener("click", closeQtySheet);
-      sheetCancelBtn.addEventListener("click", cancelInputWait);
-      sheetClearBtn.addEventListener("click", clearSheetInputs);
-
-      qtySheet.addEventListener("click", e => {
-        if (e.target === qtySheet) cancelInputWait();
-      });
-
-      document.querySelectorAll("[data-setqty]").forEach(btn => {
-        btn.addEventListener("click", () => {
-          sheetQty.value = btn.dataset.setqty;
-          feedbackQty();
-          sheetQty.focus({ preventScroll: true });
-        });
-      });
-
-      document.querySelectorAll("[data-key]").forEach(btn => {
-        btn.addEventListener("click", () => {
-          const key = btn.dataset.key;
-          if (key === "clear") {
-            sheetQty.value = "";
-          } else {
-            sheetQty.value = (sheetQty.value === "0" ? "" : sheetQty.value) + key;
-          }
-          feedbackQty();
-          sheetQty.focus({ preventScroll: true });
-        });
-      });
-
-      renderTable();
-      updateMasterSummary();
-      updateAutoModeButton();
-
-      (async () => {
-        const ok = await autoLoadMasterCsv();
-        if (!ok) {
-          setStatus(window.isSecureContext ? "商品リストの読込に失敗しました" : "HTTPSで開いてね");
-          if (window.isSecureContext) {
-            showCameraGuide("商品リストの読込に失敗しました");
-          }
-        } else {
-          setStatus("商品リスト読み込みOK");
-          showCameraGuide("商品リスト読み込みOK / 開始を押してね");
-        }
-      })();
-    })();
-  </script>
+</div>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const video = $('video');
+  const statusEl = $('status');
+  const cameraGuide = $('cameraGuide');
+  const flashEl = $('flash');
+  const scanBoxEl = $('scanBox');
+  const startBtn = $('startBtn'), stopBtn = $('stopBtn'), switchBtn = $('switchBtn'), exportBtn = $('exportBtn'), copyBtn = $('copyBtn'), resetBtn = $('resetBtn');
+  const codeInput = $('codeInput'), nameInput = $('nameInput'), qtyInput = $('qtyInput'), addBtn = $('addBtn'), clearCurrentBtn = $('clearCurrentBtn'), autoModeBtn = $('autoModeBtn');
+  const itemCount = $('itemCount'), totalQty = $('totalQty'), masterCount = $('masterCount'), tbody = $('tbody');
+  const qtySheet = $('qtySheet'), sheetCode = $('sheetCode'), sheetName = $('sheetName'), sheetNameInput = $('sheetNameInput'), sheetQty = $('sheetQty'), sheetAddBtn = $('sheetAddBtn'), sheetCloseBtn = $('sheetCloseBtn'), sheetCancelBtn = $('sheetCancelBtn'), sheetClearBtn = $('sheetClearBtn');
+  const detectCanvas = document.createElement('canvas');
+  const detectCtx = detectCanvas.getContext('2d', {willReadFrequently:true});
+
+  let stream = null, detector = null, scanning = false, rafId = 0, useBackCamera = true, lastDetectedRaw = '', lastDetectedAt = 0, flashTimer = 0;
+  let candidateCode = '', candidateCount = 0;
+  const REQUIRED_CONSECUTIVE_DETECTIONS = 2, SCAN_COOLDOWN_MS = 2200;
+  const DETECT_REGION = {x:0.10, y:0.20, w:0.80, h:0.55};
+  let audioCtx = null, wakeLock = null, autoMode = true;
+  const inventory = new Map();
+  const productMaster = new Map();
+
+  function setStatus(msg){ statusEl.textContent = msg; }
+  function showGuide(msg, mode='normal'){ cameraGuide.textContent = msg; cameraGuide.classList.toggle('input-mode', mode==='input'); cameraGuide.classList.add('show'); }
+  function hideGuide(){ cameraGuide.classList.remove('show'); cameraGuide.classList.remove('input-mode'); }
+  function setStartGuide(){ showGuide('商品リスト読み込みOK / 開始を押してね'); }
+  function truncateText(text, max=20){ const s=String(text||'').trim(); return s.length>max ? s.slice(0,max)+'…' : s; }
+  function setRegisteredStatus(name, qty, prefix='登録'){ setStatus(`${prefix}: ${truncateText(name||'商品名未設定',20)} ×${qty}`); }
+  function updateAutoModeButton(){ autoModeBtn.textContent = autoMode ? '連続モード ON' : '連続モード OFF'; autoModeBtn.className = autoMode ? 'warn' : ''; }
+  function normalizeCode(code){ return String(code||'').replace(/[^\dA-Za-z]/g,'').trim(); }
+  function normalizeName(name){ return String(name||'').trim(); }
+  function isProbablyProductCode(code){ return /^\d{8}$/.test(code) || /^\d{12}$/.test(code) || /^\d{13}$/.test(code); }
+  function escapeCsv(v){ const s=String(v??''); return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; }
+  function getMasterName(code){ return productMaster.get(code) || ''; }
+  function updateMasterSummary(){ masterCount.textContent = String(productMaster.size); }
+  function updateSummary(){ itemCount.textContent = String(inventory.size); let total=0; for (const row of inventory.values()) total += row.qty; totalQty.textContent = String(total); }
+  function touchInventoryOrder(code,row){ inventory.delete(code); inventory.set(code,row); }
+  function renderTable(){
+    tbody.innerHTML='';
+    const entries=[...inventory.entries()].reverse();
+    if (!entries.length){ tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#98a6d8;padding:16px;">まだ登録なし</td></tr>'; updateSummary(); return; }
+    for (const [code,row] of entries){
+      const tr=document.createElement('tr');
+      tr.innerHTML = `<td class="mono" style="width:27%"></td><td style="width:43%"></td><td class="right mono" style="width:10%"></td><td style="width:20%"></td>`;
+      tr.children[0].textContent = code;
+      tr.children[1].textContent = row.name || '';
+      tr.children[2].textContent = String(row.qty);
+      const wrap=document.createElement('div'); wrap.className='mini-actions';
+      const b1=document.createElement('button'); b1.textContent='+1'; b1.onclick=()=>{ row.qty+=1; touchInventoryOrder(code,row); feedbackQty(); renderTable(); };
+      const b2=document.createElement('button'); b2.textContent='-1'; b2.onclick=()=>{ row.qty-=1; if (row.qty<=0) inventory.delete(code); else touchInventoryOrder(code,row); feedbackQty(); renderTable(); };
+      const b3=document.createElement('button'); b3.textContent='Del'; b3.onclick=()=>{ inventory.delete(code); renderTable(); };
+      wrap.append(b1,b2,b3); tr.children[3].appendChild(wrap); tbody.appendChild(tr);
+    }
+    updateSummary();
+  }
+  function showFlash(text='読み取り成功'){ flashEl.textContent=text; flashEl.classList.add('show'); scanBoxEl.classList.add('hit'); clearTimeout(flashTimer); flashTimer=setTimeout(()=>{flashEl.classList.remove('show'); scanBoxEl.classList.remove('hit');},900); }
+  function vibrate(p){ try{ if(navigator.vibrate) navigator.vibrate(p);}catch{} }
+  function ensureAudioContext(){ const Ctx = window.AudioContext || window.webkitAudioContext; if(!Ctx) return null; if(!audioCtx) audioCtx=new Ctx(); if(audioCtx.state==='suspended') audioCtx.resume().catch(()=>{}); return audioCtx; }
+  function playTone(freq=880,duration=0.08,type='sine',gainValue=0.04,whenOffset=0){ const ctx=ensureAudioContext(); if(!ctx) return; const now=ctx.currentTime+whenOffset; const osc=ctx.createOscillator(); const gain=ctx.createGain(); osc.type=type; osc.frequency.setValueAtTime(freq,now); gain.gain.setValueAtTime(0.0001,now); gain.gain.exponentialRampToValueAtTime(gainValue,now+0.01); gain.gain.exponentialRampToValueAtTime(0.0001,now+duration); osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now+duration+0.02); }
+  function soundHitMatched(){ playTone(1046,0.06,'triangle',0.05,0); playTone(1318,0.08,'triangle',0.05,0.05); }
+  function soundHitUnmatched(){ playTone(440,0.10,'sawtooth',0.04,0); }
+  function soundQty(){ playTone(740,0.04,'square',0.025,0); }
+  function soundRegistered(){ playTone(880,0.05,'triangle',0.04,0); playTone(1174,0.06,'triangle',0.045,0.05); playTone(1567,0.09,'triangle',0.05,0.10); }
+  function feedbackQty(){ soundQty(); vibrate(20); }
+  function setDetectedFields(code,name=''){ codeInput.value=code||''; nameInput.value=name||''; }
+  function openQtySheet(code,name){ sheetCode.textContent=code||'-'; sheetName.textContent=name||'商品名未登録'; sheetNameInput.value=name||''; sheetQty.value='1'; qtySheet.classList.add('show'); showGuide('入力待ち：外側タップで閉じる','input'); setTimeout(()=>{ if(sheetNameInput.value){ sheetQty.focus({preventScroll:true}); } else { sheetNameInput.focus({preventScroll:true}); sheetNameInput.select?.(); } },30); }
+  function closeQtySheet(){ qtySheet.classList.remove('show'); if(scanning) hideGuide(); else setStartGuide(); }
+  function cancelInputWait(){ setDetectedFields('',''); qtyInput.value='1'; closeQtySheet(); }
+  function clearSheetInputs(){ sheetNameInput.value=''; sheetQty.value='1'; sheetNameInput.focus({preventScroll:true}); }
+  function addOrUpdateMaster(code,name){ const c=normalizeCode(code), n=normalizeName(name); if(c&&n) productMaster.set(c,n); }
+  function addInventory(code,name,qty){ const current=inventory.get(code); if(current){ current.qty+=qty; if(name) current.name=name; touchInventoryOrder(code,current); } else { inventory.set(code,{name:name||'', qty}); } }
+  function maybeAutoAddScanned(code){ const knownName = getMasterName(code) || (inventory.get(code)?.name || ''); if (!autoMode || !knownName) return false; addInventory(code, knownName, 1); renderTable(); setRegisteredStatus(knownName,1,'連続登録'); showFlash('＋1'); soundRegistered(); vibrate([40]); return true; }
+  function applyDetectedCode(code){ const matchedName=getMasterName(code) || (inventory.get(code)?.name || ''); if (maybeAutoAddScanned(code)) return; setDetectedFields(code,matchedName); qtyInput.value='1'; showFlash(matchedName ? `読取 ${code}` : `読取 ${code} / 名称未登録`); vibrate(matchedName ? [40,30,40] : [120]); matchedName ? soundHitMatched() : soundHitUnmatched(); setStatus(matchedName ? `読取成功: ${truncateText(matchedName,20)}` : `読取成功: ${code}`); openQtySheet(code,matchedName); }
+  function addCurrentCode(){ const code=normalizeCode(codeInput.value); const inputName=normalizeName(nameInput.value || getMasterName(code)); const qty=Math.floor(Number(qtyInput.value)); if(!code) return setStatus('コード未入力'); if(!isProbablyProductCode(code)) return setStatus('コード形式が不正っぽい'); if(!Number.isFinite(qty)||qty<=0) return setStatus('数量は1以上'); if(!inputName) return setStatus('商品名が空です'); addOrUpdateMaster(code,inputName); addInventory(code,inputName,qty); renderTable(); updateMasterSummary(); setRegisteredStatus(inputName,qty); showFlash(`登録 ${qty}`); soundRegistered(); vibrate([50,30,70]); setDetectedFields('',''); qtyInput.value='1'; closeQtySheet(); }
+  function addFromSheet(){ const code=normalizeCode(sheetCode.textContent); const name=normalizeName(sheetNameInput.value || getMasterName(code)); const qty=Math.floor(Number(sheetQty.value)); if(!code||!isProbablyProductCode(code)) return setStatus('シート内コードが不正'); if(!name) return setStatus('商品名が空です'); if(!Number.isFinite(qty)||qty<=0) return setStatus('数量は1以上'); addOrUpdateMaster(code,name); addInventory(code,name,qty); renderTable(); updateMasterSummary(); setRegisteredStatus(name,qty); showFlash(`登録 ${qty}`); soundRegistered(); vibrate([50,30,70]); setDetectedFields('',''); qtyInput.value='1'; closeQtySheet(); }
+  function clearCurrent(){ setDetectedFields('',''); qtyInput.value='1'; closeQtySheet(); setStatus('クリア'); }
+  function exportCsv(){ const rows=[['JAN','商品名','個数']]; for(const [code,row] of inventory.entries()) rows.push([code,row.name||'',String(row.qty)]); const csv=rows.map(r=>r.map(escapeCsv).join(',')).join('\r\n'); const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const d=new Date(), p=n=>String(n).padStart(2,'0'); const name=`inventory_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.csv`; const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000); setStatus(`CSV出力: ${name}`); }
+  function copyToClipboard(){ if(inventory.size===0) return setStatus('コピーするデータがないよ'); const rows=[['JAN','商品名','個数']]; for(const [code,row] of inventory.entries()) rows.push([code,row.name||'',String(row.qty)]); const text=rows.map(r=>r.join('\t')).join('\n'); navigator.clipboard.writeText(text).then(()=>{ setStatus('クリップボードにコピーしたよ'); showFlash('コピー完了'); soundRegistered(); vibrate(30); }).catch(()=>setStatus('コピー失敗')); }
+  function splitCsvLine(line){ const out=[]; let cur='', inQuotes=false; for(let i=0;i<line.length;i++){ const ch=line[i]; if(ch==='"'){ if(inQuotes && line[i+1]==='"'){ cur+='"'; i++; } else inQuotes=!inQuotes; } else if(ch===',' && !inQuotes){ out.push(cur); cur=''; } else cur+=ch; } out.push(cur); return out; }
+  function parseCsv(text){ const lines=text.replace(/^\uFEFF/,'').split(/\r\n|\n|\r/).filter(l=>l.trim()!==''); if(!lines.length) return {ok:false,error:'CSVが空です'}; const header=splitCsvLine(lines[0]).map(v=>v.trim().toLowerCase()); const janIdx=header.findIndex(h=>h==='jan'||h==='code'); const nameIdx=header.findIndex(h=>h==='name'||h==='product'||h==='product_name'); if(janIdx===-1||nameIdx===-1) return {ok:false,error:'ヘッダは jan,name にしてください'}; const map=new Map(); let skipped=0; for(let i=1;i<lines.length;i++){ const cols=splitCsvLine(lines[i]); const code=normalizeCode(cols[janIdx]??''); const name=normalizeName(cols[nameIdx]??''); if(!code||!name){ skipped++; continue; } map.set(code,name); } return {ok:true,map,skipped}; }
+  async function autoLoadMasterCsv(){ try{ const masterUrl=new URL('master.csv',location.href).toString(); const res=await fetch(masterUrl,{cache:'no-store'}); if(!res.ok){ setStatus(`商品リスト取得失敗: ${res.status}`); return false; } const text=await res.text(); const result=parseCsv(text); if(!result.ok){ setStatus(`商品リスト読込失敗: ${result.error}`); return false; } productMaster.clear(); for(const [code,name] of result.map.entries()) productMaster.set(code,name); updateMasterSummary(); setStatus(`商品リスト読み込みOK: ${productMaster.size}件`); return true; } catch(err){ console.error(err); setStatus('商品リスト自動読込失敗'); return false; } }
+  function validateEAN13(code){ if(!/^\d{13}$/.test(code)) return false; const digits=code.split('').map(Number); const check=digits.pop(); let sum=0; for(let i=0;i<digits.length;i++) sum+=digits[i]*(i%2===0?1:3); return (10-(sum%10))%10===check; }
+  function validateEAN8(code){ if(!/^\d{8}$/.test(code)) return false; const digits=code.split('').map(Number); const check=digits.pop(); let sum=0; for(let i=0;i<digits.length;i++) sum+=digits[i]*(i%2===0?3:1); return (10-(sum%10))%10===check; }
+  function validateUPCA(code){ if(!/^\d{12}$/.test(code)) return false; const digits=code.split('').map(Number); const check=digits.pop(); let sum=0; for(let i=0;i<digits.length;i++) sum+=digits[i]*(i%2===0?3:1); return (10-(sum%10))%10===check; }
+  function hasValidCheckDigit(code){ if(/^\d{13}$/.test(code)) return validateEAN13(code); if(/^\d{12}$/.test(code)) return validateUPCA(code); if(/^\d{8}$/.test(code)) return validateEAN8(code); return false; }
+  function getDetectRegion(videoEl){ const vw=videoEl.videoWidth||0, vh=videoEl.videoHeight||0; if(!vw||!vh) return null; return { sx:Math.floor(vw*DETECT_REGION.x), sy:Math.floor(vh*DETECT_REGION.y), sw:Math.floor(vw*DETECT_REGION.w), sh:Math.floor(vh*DETECT_REGION.h)}; }
+  function drawCenterCropToCanvas(videoEl){ const r=getDetectRegion(videoEl); if(!r||!detectCtx) return null; if(r.sw<=0||r.sh<=0) return null; detectCanvas.width=r.sw; detectCanvas.height=r.sh; detectCtx.clearRect(0,0,r.sw,r.sh); detectCtx.drawImage(videoEl,r.sx,r.sy,r.sw,r.sh,0,0,r.sw,r.sh); return detectCanvas; }
+  async function initDetector(){ if(!('BarcodeDetector' in window)){ detector=null; setStatus('BarcodeDetector未対応。手入力のみ'); return false; } try{ const formats=await window.BarcodeDetector.getSupportedFormats(); const preferred=['ean_13','ean_8','upc_a','upc_e']; const useFormats=preferred.filter(f=>formats.includes(f)); detector=new window.BarcodeDetector(useFormats.length?{formats:useFormats}:undefined); return true; } catch(err){ console.error(err); detector=null; setStatus('BarcodeDetector初期化失敗'); return false; } }
+  async function acquireWakeLock(){ try{ if(!('wakeLock' in navigator)) return; wakeLock=await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release',()=>{wakeLock=null;}); }catch(err){ console.error('Wake Lock error:',err);} }
+  async function releaseWakeLock(){ try{ if(wakeLock){ await wakeLock.release(); wakeLock=null; } }catch(err){ console.error('Wake Lock release error:',err);} }
+  document.addEventListener('visibilitychange', async ()=>{ if(document.visibilityState==='visible' && scanning) await acquireWakeLock(); });
+  async function startCamera(){ stopCamera(); ensureAudioContext(); if(!window.isSecureContext) return setStatus('HTTPSで開いてね'); if(!navigator.mediaDevices) return setStatus('mediaDevicesなし'); if(!navigator.mediaDevices.getUserMedia) return setStatus('getUserMediaなし'); await initDetector(); try{ stream=await navigator.mediaDevices.getUserMedia({audio:false, video:{ facingMode: useBackCamera ? {ideal:'environment'} : {ideal:'user'}, width:{ideal:1920}, height:{ideal:1080}, frameRate:{ideal:30,max:30} }}); video.srcObject=stream; await video.play(); const track = stream.getVideoTracks()[0]; try{ await track.applyConstraints({advanced:[{focusMode:'continuous'}]}); }catch{} scanning=true; setStatus('カメラ起動'); hideGuide(); scanLoop(); }catch(err){ console.error(err); if(err?.name==='NotAllowedError') setStatus('カメラ権限が拒否された'); else if(err?.name==='NotFoundError') setStatus('カメラが見つからない'); else if(err?.name==='NotReadableError') setStatus('他アプリがカメラ使用中かも'); else setStatus('カメラ起動失敗: '+(err?.name||err)); } }
+  function stopCamera(){ scanning=false; candidateCode=''; candidateCount=0; if(rafId) cancelAnimationFrame(rafId); rafId=0; if(video.srcObject){ for(const track of video.srcObject.getTracks()) track.stop(); video.srcObject=null; } if(stream){ for(const track of stream.getTracks()) track.stop(); stream=null; } }
+  async function scanLoop(){ if(!scanning) return; try{ if(detector && video.readyState>=2 && !qtySheet.classList.contains('show')){ const src=drawCenterCropToCanvas(video); if(src){ const barcodes = await detector.detect(src); if(barcodes?.length){ const raw=normalizeCode(barcodes[0].rawValue); const now=Date.now(); if(raw && isProbablyProductCode(raw) && hasValidCheckDigit(raw)){ if(raw===candidateCode) candidateCount += 1; else { candidateCode=raw; candidateCount=1; } if(candidateCount>=REQUIRED_CONSECUTIVE_DETECTIONS && (raw!==lastDetectedRaw || now-lastDetectedAt>SCAN_COOLDOWN_MS)){ lastDetectedRaw=raw; lastDetectedAt=now; candidateCode=''; candidateCount=0; applyDetectedCode(raw); } } else { candidateCode=''; candidateCount=0; } } else { candidateCode=''; candidateCount=0; } } } }catch(err){ console.error(err); } rafId=requestAnimationFrame(scanLoop); }
+
+  startBtn.addEventListener('click', async ()=>{ await startCamera(); await acquireWakeLock(); });
+  stopBtn.addEventListener('click', async ()=>{ stopCamera(); await releaseWakeLock(); setStatus('カメラ停止'); setStartGuide(); });
+  switchBtn.addEventListener('click', async ()=>{ useBackCamera=!useBackCamera; await startCamera(); });
+  exportBtn.addEventListener('click', exportCsv); copyBtn.addEventListener('click', copyToClipboard);
+  autoModeBtn.addEventListener('click', ()=>{ autoMode=!autoMode; updateAutoModeButton(); setStatus(autoMode ? '連続モード ON' : '連続モード OFF'); });
+  addBtn.addEventListener('click', addCurrentCode); clearCurrentBtn.addEventListener('click', clearCurrent);
+  resetBtn.addEventListener('click', ()=>{ if(!confirm('一覧を全削除する？')) return; inventory.clear(); renderTable(); setStatus('全削除'); });
+  codeInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); const code=normalizeCode(codeInput.value); const name=normalizeName(nameInput.value || getMasterName(code)); setDetectedFields(code,name); if(name) { qtyInput.focus({preventScroll:true}); qtyInput.select?.(); } else { nameInput.focus({preventScroll:true}); nameInput.select?.(); } } });
+  nameInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); qtyInput.focus({preventScroll:true}); qtyInput.select?.(); } });
+  qtyInput.addEventListener('input', feedbackQty); sheetQty.addEventListener('input', feedbackQty);
+  qtyInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addCurrentCode(); } });
+  sheetNameInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); sheetQty.focus({preventScroll:true}); } });
+  sheetQty.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addFromSheet(); } });
+  sheetAddBtn.addEventListener('click', addFromSheet); sheetCloseBtn.addEventListener('click', closeQtySheet); sheetCancelBtn.addEventListener('click', cancelInputWait); sheetClearBtn.addEventListener('click', clearSheetInputs);
+  qtySheet.addEventListener('click', e=>{ if(e.target===qtySheet) cancelInputWait(); });
+  document.querySelectorAll('[data-setqty]').forEach(btn=> btn.addEventListener('click', ()=>{ sheetQty.value=btn.dataset.setqty; feedbackQty(); }));
+  document.querySelectorAll('[data-key]').forEach(btn=> btn.addEventListener('click', ()=>{ const key=btn.dataset.key; sheetQty.value = key==='clear' ? '' : ((sheetQty.value==='0'?'':sheetQty.value)+key); feedbackQty(); }));
+
+  renderTable(); updateMasterSummary(); updateAutoModeButton();
+  (async()=>{ const ok = await autoLoadMasterCsv(); if(!ok){ setStatus(window.isSecureContext ? '商品リストの読込に失敗しました' : 'HTTPSで開いてね'); if(window.isSecureContext) showGuide('商品リストの読込に失敗しました'); } else { setStatus('商品リスト読み込みOK'); showGuide('商品リスト読み込みOK / 開始を押してね'); } })();
+})();
+</script>
 </body>
 </html>
-
-
-
