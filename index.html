@@ -158,6 +158,7 @@
   function isProbablyProductCode(code){ return /^\d{8}$/.test(code) || /^\d{12}$/.test(code) || /^\d{13}$/.test(code); }
   function escapeCsv(v){ const s=String(v??''); return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; }
   function getMasterName(code){ return productMaster.get(code) || ''; }
+  function updateMasterSummary(){ /* 表示しないので何もしない */ }
   function updateSummary(){ itemCount.textContent = String(inventory.size); let total=0; for (const row of inventory.values()) total += row.qty; totalQty.textContent = String(total); }
   function touchInventoryOrder(code,row){ inventory.delete(code); inventory.set(code,row); }
   function renderTable(){
