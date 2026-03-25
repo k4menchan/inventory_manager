@@ -93,11 +93,41 @@
       white-space:nowrap;
     }
 
-    .status{
+    .stat{
+      display:flex;
+      flex-direction:column;
+      align-items:flex-start;
+      justify-content:center;
+      min-height:54px;
+      gap:2px;
+      min-width:88px;
+    }
+
+    .stat-status{
       flex:1;
-      min-width:0;
+      min-width:180px;
+      max-width:100%;
+      border-radius:18px;
+    }
+
+    .stat-label{
+      font-size:10px;
+      line-height:1;
+      opacity:.65;
+    }
+
+    .stat-value{
+      font-size:14px;
+      font-weight:800;
+      line-height:1.2;
       overflow:hidden;
       text-overflow:ellipsis;
+      white-space:nowrap;
+      max-width:100%;
+    }
+
+    .status{
+      width:100%;
     }
 
     .flash{
@@ -160,43 +190,6 @@
       bottom:auto;
     }
 
-    .camera-recent{
-      position:absolute;
-      left:50%;
-      bottom:66px;
-      transform:translateX(-50%);
-      max-width:92vw;
-      padding:8px 12px;
-      border-radius:14px;
-      background:rgba(9,13,27,.72);
-      backdrop-filter:blur(8px);
-      border:1px solid rgba(255,255,255,.12);
-      color:#fff;
-      font-size:13px;
-      font-weight:700;
-      z-index:6;
-      display:flex;
-      gap:6px;
-      align-items:baseline;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-    .recent-label{
-      font-size:10px;
-      opacity:.7;
-      font-weight:700;
-    }
-    #recentText{
-      min-width:0;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-    .recent-sep{
-      opacity:.45;
-    }
-
-
     .panel{
       background:rgba(18,25,51,.96);
       border:1px solid var(--line);
@@ -206,8 +199,19 @@
 
     .controls{
       display:grid;
-      grid-template-columns: repeat(5,1fr);
+      grid-template-columns: repeat(6,1fr);
       gap:8px;
+    }
+
+    .mode-row{
+      display:grid;
+      grid-template-columns: 1.05fr 1.5fr .7fr .8fr;
+      gap:8px;
+      margin-top:6px;
+    }
+
+    .mode-row .spacer{
+      min-height:1px;
     }
 
     .entry{
@@ -400,6 +404,7 @@
     @media (max-width:780px){
       .controls{grid-template-columns: repeat(3,1fr)}
       .entry{grid-template-columns: 1fr 1.2fr .65fr .8fr}
+      .mode-row{grid-template-columns: 1fr 1.2fr .65fr .8fr}
       .list{max-height:23dvh}
       button{padding:12px 8px;font-size:14px}
     }
@@ -412,14 +417,26 @@
       <div id="scanBox" class="scan-box"></div>
 
       <div class="topbar">
-        <div id="status" class="badge status">商品リスト読み込み中...</div>
-        <div class="badge">合計 <span id="totalQty">0</span></div>
-        <div class="badge">商品リスト <span id="masterCount">0</span></div>
+        <div class="badge stat stat-status">
+          <div class="stat-label">ステータス</div>
+          <div id="status" class="stat-value status">商品リスト読み込み中...</div>
+        </div>
+        <div class="badge stat">
+          <div class="stat-label">件数</div>
+          <div id="itemCount" class="stat-value">0</div>
+        </div>
+        <div class="badge stat">
+          <div class="stat-label">合計</div>
+          <div id="totalQty" class="stat-value">0</div>
+        </div>
+        <div class="badge stat">
+          <div class="stat-label">商品リスト</div>
+          <div id="masterCount" class="stat-value">0</div>
+        </div>
       </div>
 
       <div id="flash" class="flash">読み取り成功</div>
       <div id="cameraGuide" class="camera-guide show">商品リスト読み込み中...</div>
-      <div id="cameraRecent" class="camera-recent"><span class="recent-label">前回登録</span><span id="recentText">-</span><span class="recent-sep">/</span><span class="recent-label">件数</span><span id="recentCount">0</span></div>
     </section>
 
     <section class="panel">
@@ -437,6 +454,13 @@
         <input id="productName" class="focus-ring" placeholder="商品名" />
         <input id="qtyInput" class="focus-ring" type="number" min="1" step="1" value="1" inputmode="numeric" />
         <button id="addBtn" class="ok">登録</button>
+      </div>
+
+      <div class="mode-row">
+        <div class="spacer"></div>
+        <div class="spacer"></div>
+        <div class="spacer"></div>
+        <button id="autoModeBtn" class="primary">連続モード ON</button>
       </div>
 
       <div class="entry" style="margin-top:8px;">
@@ -461,7 +485,7 @@
 
         <div class="qty-row">
           <input id="sheetNameInput" class="focus-ring" placeholder="商品名" />
-          <input id="sheetQty" class="focus-ring" type="number" min="1" step="1" value="1" inputmode="numeric" />
+          <input id="sheetQty" class="focus-ring" type="text" value="1" readonly inputmode="none" />
           <button id="sheetAddBtn" class="ok">登録</button>
         </div>
 
@@ -507,6 +531,7 @@
       const exportBtn = document.getElementById("exportBtn");
       const copyBtn = document.getElementById("copyBtn");
       const addBtn = document.getElementById("addBtn");
+      const autoModeBtn = document.getElementById("autoModeBtn");
       const clearCurrentBtn = document.getElementById("clearCurrentBtn");
       const resetBtn = document.getElementById("resetBtn");
 
@@ -516,8 +541,7 @@
       const manualCode = document.getElementById("manualCode");
       const manualName = document.getElementById("manualName");
       const tbody = document.getElementById("tbody");
-      const recentText = document.getElementById("recentText");
-      const recentCount = document.getElementById("recentCount");
+      const itemCount = document.getElementById("itemCount");
       const totalQty = document.getElementById("totalQty");
       const masterCount = document.getElementById("masterCount");
 
@@ -544,6 +568,7 @@
       let lastDetectedAt = 0;
       let flashTimer = 0;
       let autoOpenQtySheet = true;
+      let autoMode = true;
 
       let candidateCode = "";
       let candidateCount = 0;
@@ -593,10 +618,24 @@
 
       const inventory = new Map();
       const productMaster = new Map();
-      let lastRegisteredName = "-";
 
       function setStatus(msg) {
         statusEl.textContent = msg;
+      }
+
+      function truncateText(text, max = 20) {
+        const s = String(text || "").trim();
+        return s.length > max ? s.slice(0, max) + "…" : s;
+      }
+
+      function setRegisteredStatus(name, qty, prefix = "登録") {
+        const base = truncateText(name || "商品名未設定", 20);
+        setStatus(`${prefix}: ${base} ×${qty}`);
+      }
+
+      function updateAutoModeButton() {
+        autoModeBtn.textContent = autoMode ? "連続モード ON" : "連続モード OFF";
+        autoModeBtn.className = autoMode ? "primary" : "";
       }
 
       function showCameraGuide(message, mode = "normal") {
@@ -649,26 +688,15 @@
         return productMaster.get(code) || "";
       }
 
-
-      function truncateText(text, max = 20) {
-        const s = String(text || "").trim();
-        return s.length > max ? s.slice(0, max) + "…" : s;
-      }
-
-      function updateRecentDisplay() {
-        recentText.textContent = lastRegisteredName || "-";
-        recentCount.textContent = String(inventory.size);
-      }
-
       function updateMasterSummary() {
         masterCount.textContent = String(productMaster.size);
       }
 
       function updateSummary() {
+        itemCount.textContent = String(inventory.size);
         let total = 0;
         for (const row of inventory.values()) total += row.qty;
         totalQty.textContent = String(total);
-        updateRecentDisplay();
       }
 
       function renderTable() {
@@ -833,10 +861,7 @@
         showInputWaitGuide();
 
         setTimeout(() => {
-          if (sheetNameInput.value) {
-            sheetQty.focus({ preventScroll: true });
-            sheetQty.select?.();
-          } else {
+          if (!sheetNameInput.value) {
             sheetNameInput.focus({ preventScroll: true });
             sheetNameInput.select?.();
           }
@@ -868,23 +893,36 @@
 
       function applyDetectedCode(code) {
         const matchedName = getMasterName(code);
-        setDetectedFields(code, matchedName);
+        const existing = inventory.get(code);
+        const effectiveName = matchedName || existing?.name || "";
+
+        if (autoMode && effectiveName) {
+          addInventory(code, effectiveName, 1);
+          renderTable();
+          updateMasterSummary();
+          showFlash("+1");
+          soundRegistered();
+          vibrate([35, 20, 35]);
+          setRegisteredStatus(effectiveName, 1, "連続登録");
+          return;
+        }
+
+        setDetectedFields(code, effectiveName);
         qtyInput.value = "1";
 
-        showFlash(matchedName ? `読取 ${code}` : `読取 ${code} / 名称未登録`);
-        vibrate(matchedName ? [40, 30, 40] : [120]);
+        showFlash(effectiveName ? `読取 ${code}` : `読取 ${code} / 名称未登録`);
+        vibrate(effectiveName ? [40, 30, 40] : [120]);
 
-        if (matchedName) soundHitMatched();
+        if (effectiveName) soundHitMatched();
         else soundHitUnmatched();
 
-        setStatus(matchedName ? `読取成功: ${code}` : `読取成功: ${code}（商品名未登録）`);
+        setStatus(effectiveName ? `読取: ${truncateText(effectiveName, 20)}` : `読取成功: ${code}（商品名未登録）`);
 
         if (autoOpenQtySheet) {
-          openQtySheet(code, matchedName);
+          openQtySheet(code, effectiveName);
         } else {
-          if (matchedName) {
-            qtyInput.focus({ preventScroll: true });
-            qtyInput.select?.();
+          if (effectiveName) {
+            productName.focus({ preventScroll: true });
           } else {
             productName.focus({ preventScroll: true });
             productName.select?.();
@@ -902,13 +940,6 @@
       function touchInventoryOrder(code, row) {
         inventory.delete(code);
         inventory.set(code, row);
-      }
-
-
-      function setLastRegisteredDisplay(name, code, qty) {
-        const base = truncateText(name || code || "-", 20);
-        lastRegisteredName = `${base} ×${qty}`;
-        updateRecentDisplay();
       }
 
       function addInventory(code, name, qty) {
@@ -934,11 +965,10 @@
 
         addOrUpdateMaster(code, inputName);
         addInventory(code, inputName, qty);
-        setLastRegisteredDisplay(inputName, code, qty);
         renderTable();
         updateMasterSummary();
 
-        setStatus(`登録: ${code} × ${qty}`);
+        setRegisteredStatus(name, qty);
         showFlash(`登録 ${qty}`);
         soundRegistered();
         vibrate([50, 30, 70]);
@@ -959,11 +989,10 @@
 
         addOrUpdateMaster(code, name);
         addInventory(code, name, qty);
-        setLastRegisteredDisplay(name, code, qty);
         renderTable();
         updateMasterSummary();
 
-        setStatus(`登録: ${code} × ${qty}`);
+        setRegisteredStatus(inputName, qty);
         showFlash(`登録 ${qty}`);
         soundRegistered();
         vibrate([50, 30, 70]);
@@ -978,32 +1007,6 @@
         qtyInput.value = "1";
         closeQtySheet();
         setStatus("クリア");
-      }
-
-      
-      async function copyToClipboard() {
-        if (inventory.size === 0) {
-          setStatus("コピーするデータがないよ");
-          return;
-        }
-
-        const rows = [["JAN", "商品名", "個数"]];
-        for (const [code, row] of inventory.entries()) {
-          rows.push([code, row.name || "", String(row.qty)]);
-        }
-
-        const text = rows.map(r => r.join("\t")).join("\n");
-
-        try {
-          await navigator.clipboard.writeText(text);
-          setStatus("クリップボードにコピーしたよ");
-          showFlash("コピー完了");
-          soundRegistered();
-          vibrate([30]);
-        } catch (err) {
-          console.error(err);
-          setStatus("コピー失敗");
-        }
       }
 
       function exportCsv() {
@@ -1029,6 +1032,29 @@
         setTimeout(() => URL.revokeObjectURL(url), 1000);
 
         setStatus(`CSV出力: ${name}`);
+      }
+
+      function copyToClipboard() {
+        if (inventory.size === 0) {
+          setStatus("コピーするデータがないよ");
+          return;
+        }
+
+        const rows = [["JAN", "商品名", "個数"]];
+        for (const [code, row] of inventory.entries()) {
+          rows.push([code, row.name || "", String(row.qty)]);
+        }
+
+        const text = rows.map(r => r.join("	")).join("
+");
+        navigator.clipboard.writeText(text).then(() => {
+          setStatus("コピー完了");
+          showFlash("コピー完了");
+          soundRegistered();
+          vibrate(30);
+        }).catch(() => {
+          setStatus("コピー失敗");
+        });
       }
 
       function splitCsvLine(line) {
@@ -1337,13 +1363,17 @@
 
       exportBtn.addEventListener("click", exportCsv);
       copyBtn.addEventListener("click", copyToClipboard);
+      autoModeBtn.addEventListener("click", () => {
+        autoMode = !autoMode;
+        updateAutoModeButton();
+        setStatus(autoMode ? "連続モード ON" : "連続モード OFF");
+      });
       addBtn.addEventListener("click", addCurrentCode);
       clearCurrentBtn.addEventListener("click", clearCurrent);
 
       resetBtn.addEventListener("click", () => {
         if (!confirm("一覧を全削除する？")) return;
         inventory.clear();
-        lastRegisteredName = "-";
         renderTable();
         setStatus("全削除");
       });
@@ -1429,7 +1459,7 @@
 
       renderTable();
       updateMasterSummary();
-      updateRecentDisplay();
+      updateAutoModeButton();
 
       (async () => {
         const ok = await autoLoadMasterCsv();
