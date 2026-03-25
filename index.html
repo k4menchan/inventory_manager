@@ -74,71 +74,60 @@
       top:8px;
       left:8px;
       right:8px;
-      display:grid;
-      grid-template-columns:minmax(150px,1.5fr) minmax(110px,1.1fr) repeat(3,minmax(64px,.55fr));
+      display:flex;
       gap:8px;
-      align-items:stretch;
+      align-items:center;
       z-index:3;
+      flex-wrap:wrap;
     }
 
-    .stat-card{
+    .badge{
       background:rgba(9,13,27,.72);
       backdrop-filter:blur(8px);
       border:1px solid rgba(255,255,255,.12);
       color:#fff;
-      border-radius:14px;
-      padding:6px 10px 8px;
-      min-width:0;
+      border-radius:999px;
+      padding:8px 12px;
+      font-size:13px;
+      font-weight:700;
+      white-space:nowrap;
+    }
+
+    .stat{
       display:flex;
       flex-direction:column;
-      gap:4px;
+      align-items:flex-start;
       justify-content:center;
+      min-height:54px;
+      gap:2px;
+      min-width:88px;
     }
 
     .stat-status{
       flex:1;
-      min-width:170px;
-    }
-
-    .stat-small{
-      min-width:68px;
-      align-items:center;
+      min-width:180px;
+      max-width:100%;
+      border-radius:18px;
     }
 
     .stat-label{
       font-size:10px;
       line-height:1;
-      opacity:.7;
-      white-space:nowrap;
+      opacity:.65;
     }
 
     .stat-value{
-      min-width:0;
       font-size:14px;
       font-weight:800;
+      line-height:1.2;
       overflow:hidden;
       text-overflow:ellipsis;
       white-space:nowrap;
+      max-width:100%;
     }
 
-
-    .level-normal{
-      border-color:rgba(255,255,255,.12);
-    }
-
-    .level-success{
-      border-color:rgba(121,240,180,.55);
-      background:rgba(20,65,47,.72);
-    }
-
-    .level-caution{
-      border-color:rgba(255,211,110,.55);
-      background:rgba(72,58,18,.78);
-    }
-
-    .level-warning{
-      border-color:rgba(255,124,146,.65);
-      background:rgba(78,23,35,.82);
+    .status{
+      width:100%;
     }
 
     .flash{
@@ -201,7 +190,6 @@
       bottom:auto;
     }
 
-
     .panel{
       background:rgba(18,25,51,.96);
       border:1px solid var(--line);
@@ -211,19 +199,24 @@
 
     .controls{
       display:grid;
-      grid-template-columns: repeat(7,1fr);
+      grid-template-columns: repeat(6,1fr);
       gap:8px;
     }
 
-    #scanModeBtn.active{
-      background:linear-gradient(135deg,#86ffc2,#73ebb6);
-      color:#082317;
-      border:none;
+    .mode-row{
+      display:grid;
+      grid-template-columns: 1.05fr 1.5fr .7fr .8fr;
+      gap:8px;
+      margin-top:6px;
+    }
+
+    .mode-row .spacer{
+      min-height:1px;
     }
 
     .entry{
       display:grid;
-      grid-template-columns: 1.1fr 1.4fr .55fr .7fr .7fr;
+      grid-template-columns: 1.05fr 1.5fr .7fr .8fr;
       gap:8px;
       margin-top:8px;
     }
@@ -284,7 +277,7 @@
       background:#162344;
     }
 
-    #lastCode,#productName{
+    #manualCode,#manualName{
       font-size:14px;
     }
 
@@ -409,11 +402,9 @@
     }
 
     @media (max-width:780px){
-      .topbar{
-        grid-template-columns:1.2fr 1.2fr repeat(3,.7fr);
-      }
-      .controls{grid-template-columns: repeat(4,1fr)}
-      .entry{grid-template-columns: 1fr 1.2fr .7fr .75fr .7fr}
+      .controls{grid-template-columns: repeat(3,1fr)}
+      .entry{grid-template-columns: 1fr 1.2fr .65fr .8fr}
+      .mode-row{grid-template-columns: 1fr 1.2fr .65fr .8fr}
       .list{max-height:23dvh}
       button{padding:12px 8px;font-size:14px}
     }
@@ -426,23 +417,19 @@
       <div id="scanBox" class="scan-box"></div>
 
       <div class="topbar">
-        <div id="statusCard" class="stat-card stat-status level-normal">
+        <div class="badge stat stat-status">
           <div class="stat-label">ステータス</div>
-          <div id="status" class="stat-value">商品リスト読み込み中...</div>
+          <div id="status" class="stat-value status">商品リスト読み込み中...</div>
         </div>
-        <div class="stat-card">
-          <div class="stat-label">前回登録</div>
-          <div id="lastRegistered" class="stat-value">-</div>
-        </div>
-        <div class="stat-card stat-small">
+        <div class="badge stat">
           <div class="stat-label">件数</div>
           <div id="itemCount" class="stat-value">0</div>
         </div>
-        <div class="stat-card stat-small">
+        <div class="badge stat">
           <div class="stat-label">合計</div>
           <div id="totalQty" class="stat-value">0</div>
         </div>
-        <div class="stat-card stat-small">
+        <div class="badge stat">
           <div class="stat-label">商品リスト</div>
           <div id="masterCount" class="stat-value">0</div>
         </div>
@@ -457,18 +444,30 @@
         <button id="startBtn" class="primary">開始</button>
         <button id="stopBtn">停止</button>
         <button id="switchBtn">切替</button>
-        <button id="scanModeBtn">連続モード OFF</button>
         <button id="exportBtn" class="ok">CSV出力</button>
         <button id="copyBtn" class="ok">コピー</button>
         <button id="resetBtn" class="danger">全削除</button>
       </div>
 
       <div class="entry">
-        <input id="lastCode" class="focus-ring" inputmode="numeric" placeholder="コード" />
+        <input id="lastCode" class="focus-ring" readonly placeholder="コード" />
         <input id="productName" class="focus-ring" placeholder="商品名" />
         <input id="qtyInput" class="focus-ring" type="number" min="1" step="1" value="1" inputmode="numeric" />
         <button id="addBtn" class="ok">登録</button>
+      </div>
+
+      <div class="mode-row">
+        <div class="spacer"></div>
+        <div class="spacer"></div>
+        <div class="spacer"></div>
+        <button id="autoModeBtn" class="primary">連続モード ON</button>
+      </div>
+
+      <div class="entry" style="margin-top:8px;">
+        <input id="manualCode" class="focus-ring" inputmode="numeric" placeholder="手入力コード" />
+        <input id="manualName" class="focus-ring" placeholder="商品名手入力(任意)" />
         <button id="clearCurrentBtn">クリア</button>
+        <div></div>
       </div>
 
       <div class="list">
@@ -486,7 +485,7 @@
 
         <div class="qty-row">
           <input id="sheetNameInput" class="focus-ring" placeholder="商品名" />
-          <input id="sheetQty" class="focus-ring" type="number" min="1" step="1" value="1" inputmode="numeric" />
+          <input id="sheetQty" class="focus-ring" type="text" value="1" readonly inputmode="none" />
           <button id="sheetAddBtn" class="ok">登録</button>
         </div>
 
@@ -522,8 +521,6 @@
 
       const video = document.getElementById("video");
       const statusEl = document.getElementById("status");
-      const statusCardEl = document.getElementById("statusCard");
-      const lastRegisteredEl = document.getElementById("lastRegistered");
       const flashEl = document.getElementById("flash");
       const scanBoxEl = document.getElementById("scanBox");
       const cameraGuide = document.getElementById("cameraGuide");
@@ -531,16 +528,18 @@
       const startBtn = document.getElementById("startBtn");
       const stopBtn = document.getElementById("stopBtn");
       const switchBtn = document.getElementById("switchBtn");
-      const scanModeBtn = document.getElementById("scanModeBtn");
       const exportBtn = document.getElementById("exportBtn");
       const copyBtn = document.getElementById("copyBtn");
       const addBtn = document.getElementById("addBtn");
+      const autoModeBtn = document.getElementById("autoModeBtn");
       const clearCurrentBtn = document.getElementById("clearCurrentBtn");
       const resetBtn = document.getElementById("resetBtn");
 
       const lastCode = document.getElementById("lastCode");
       const productName = document.getElementById("productName");
       const qtyInput = document.getElementById("qtyInput");
+      const manualCode = document.getElementById("manualCode");
+      const manualName = document.getElementById("manualName");
       const tbody = document.getElementById("tbody");
       const itemCount = document.getElementById("itemCount");
       const totalQty = document.getElementById("totalQty");
@@ -569,10 +568,7 @@
       let lastDetectedAt = 0;
       let flashTimer = 0;
       let autoOpenQtySheet = true;
-      let continuousScanMode = false;
-      let lastRegisteredCode = "";
-      let lastRegisteredQty = 0;
-      let lastRegisteredName = "-";
+      let autoMode = true;
 
       let candidateCode = "";
       let candidateCount = 0;
@@ -623,14 +619,8 @@
       const inventory = new Map();
       const productMaster = new Map();
 
-      function setStatus(msg, level = "normal") {
+      function setStatus(msg) {
         statusEl.textContent = msg;
-        statusCardEl.classList.remove("level-normal", "level-success", "level-caution", "level-warning");
-        statusCardEl.classList.add(
-          level === "success" ? "level-success" :
-          level === "caution" ? "level-caution" :
-          level === "warning" ? "level-warning" : "level-normal"
-        );
       }
 
       function truncateText(text, max = 20) {
@@ -638,12 +628,14 @@
         return s.length > max ? s.slice(0, max) + "…" : s;
       }
 
-      function updateLastRegistered(code = "", qty = 0, name = "") {
-        lastRegisteredCode = code || "";
-        lastRegisteredQty = qty || 0;
-        const base = name ? truncateText(name, 20) : (code || "");
-        lastRegisteredName = code ? `${base} ×${qty}` : "-";
-        if (lastRegisteredEl) lastRegisteredEl.textContent = lastRegisteredName;
+      function setRegisteredStatus(name, qty, prefix = "登録") {
+        const base = truncateText(name || "商品名未設定", 20);
+        setStatus(`${prefix}: ${base} ×${qty}`);
+      }
+
+      function updateAutoModeButton() {
+        autoModeBtn.textContent = autoMode ? "連続モード ON" : "連続モード OFF";
+        autoModeBtn.className = autoMode ? "primary" : "";
       }
 
       function showCameraGuide(message, mode = "normal") {
@@ -696,22 +688,14 @@
         return productMaster.get(code) || "";
       }
 
-      function getStoredName(code) {
-        return inventory.get(code)?.name || getMasterName(code) || "";
-      }
-
-      function isConsecutiveRegisteredScan(code) {
-        return !!code && code === lastRegisteredCode;
-      }
-
       function updateMasterSummary() {
         masterCount.textContent = String(productMaster.size);
       }
 
       function updateSummary() {
+        itemCount.textContent = String(inventory.size);
         let total = 0;
         for (const row of inventory.values()) total += row.qty;
-        if (itemCount) itemCount.textContent = String(inventory.size);
         totalQty.textContent = String(total);
       }
 
@@ -864,6 +848,8 @@
       function setDetectedFields(code, name = "") {
         lastCode.value = code || "";
         productName.value = name || "";
+        manualCode.value = "";
+        manualName.value = "";
       }
 
       function openQtySheet(code, name) {
@@ -875,10 +861,7 @@
         showInputWaitGuide();
 
         setTimeout(() => {
-          if (sheetNameInput.value) {
-            sheetQty.focus({ preventScroll: true });
-            sheetQty.select?.();
-          } else {
+          if (!sheetNameInput.value) {
             sheetNameInput.focus({ preventScroll: true });
             sheetNameInput.select?.();
           }
@@ -909,54 +892,37 @@
       }
 
       function applyDetectedCode(code) {
-        const matchedName = getStoredName(code);
-        const alreadyRegistered = inventory.has(code);
-        const consecutive = isConsecutiveRegisteredScan(code);
+        const matchedName = getMasterName(code);
+        const existing = inventory.get(code);
+        const effectiveName = matchedName || existing?.name || "";
 
-        if (continuousScanMode && matchedName) {
-          addInventory(code, matchedName, 1);
+        if (autoMode && effectiveName) {
+          addInventory(code, effectiveName, 1);
           renderTable();
           updateMasterSummary();
-          updateLastRegistered(code, inventory.get(code)?.qty || 1, matchedName);
-          showFlash(consecutive ? `連続 +1` : `+1`);
+          showFlash("+1");
           soundRegistered();
-          vibrate([35, 20, 50]);
-
-          if (consecutive) {
-            setStatus(`同じ商品を連続スキャン: ${code} を +1`, "warning");
-          } else if (alreadyRegistered) {
-            setStatus(`登録済み商品を再スキャン: ${code} を +1`, "caution");
-          } else {
-            setStatus(`連続モードで登録: ${code} × 1`, "success");
-          }
+          vibrate([35, 20, 35]);
+          setRegisteredStatus(effectiveName, 1, "連続登録");
           return;
         }
 
-        setDetectedFields(code, matchedName);
+        setDetectedFields(code, effectiveName);
         qtyInput.value = "1";
 
-        showFlash(matchedName ? `読取 ${code}` : `読取 ${code} / 名称未登録`);
-        vibrate(matchedName ? [40, 30, 40] : [120]);
+        showFlash(effectiveName ? `読取 ${code}` : `読取 ${code} / 名称未登録`);
+        vibrate(effectiveName ? [40, 30, 40] : [120]);
 
-        if (matchedName) soundHitMatched();
+        if (effectiveName) soundHitMatched();
         else soundHitUnmatched();
 
-        if (consecutive) {
-          setStatus(`同じ商品を連続スキャン: ${code}`, "warning");
-        } else if (alreadyRegistered) {
-          setStatus(`登録済み商品を再スキャン: ${code}`, "caution");
-        } else if (matchedName) {
-          setStatus(`読取成功: ${code}`, "success");
-        } else {
-          setStatus(`読取成功: ${code}（商品名未登録）`, "normal");
-        }
+        setStatus(effectiveName ? `読取: ${truncateText(effectiveName, 20)}` : `読取成功: ${code}（商品名未登録）`);
 
         if (autoOpenQtySheet) {
-          openQtySheet(code, matchedName);
+          openQtySheet(code, effectiveName);
         } else {
-          if (matchedName) {
-            qtyInput.focus({ preventScroll: true });
-            qtyInput.select?.();
+          if (effectiveName) {
+            productName.focus({ preventScroll: true });
           } else {
             productName.focus({ preventScroll: true });
             productName.select?.();
@@ -988,8 +954,8 @@
       }
 
       function addCurrentCode() {
-        const code = normalizeCode(lastCode.value);
-        const inputName = normalizeName(productName.value || getMasterName(code));
+        const code = normalizeCode(lastCode.value || manualCode.value);
+        const inputName = normalizeName(productName.value || manualName.value || getMasterName(code));
         const qty = Math.floor(Number(qtyInput.value));
 
         if (!code) return setStatus("コード未入力");
@@ -1002,8 +968,7 @@
         renderTable();
         updateMasterSummary();
 
-        updateLastRegistered(code, inventory.get(code)?.qty || qty);
-        setStatus(`登録完了`, "success");
+        setRegisteredStatus(name, qty);
         showFlash(`登録 ${qty}`);
         soundRegistered();
         vibrate([50, 30, 70]);
@@ -1027,8 +992,7 @@
         renderTable();
         updateMasterSummary();
 
-        updateLastRegistered(code, inventory.get(code)?.qty || qty);
-        setStatus(`登録完了`, "success");
+        setRegisteredStatus(inputName, qty);
         showFlash(`登録 ${qty}`);
         soundRegistered();
         vibrate([50, 30, 70]);
@@ -1042,33 +1006,7 @@
         setDetectedFields("", "");
         qtyInput.value = "1";
         closeQtySheet();
-        setStatus("クリア", "normal");
-      }
-
-
-      async function copyToClipboard() {
-        if (inventory.size === 0) {
-          setStatus("コピーするデータがないよ", "caution");
-          return;
-        }
-
-        const rows = [["JAN", "商品名", "個数"]];
-        for (const [code, row] of inventory.entries()) {
-          rows.push([code, row.name || "", String(row.qty)]);
-        }
-
-        const text = rows.map(r => r.join("\t")).join("\n");
-
-        try {
-          await navigator.clipboard.writeText(text);
-          setStatus("クリップボードにコピーしたよ", "success");
-          showFlash("コピー完了");
-          soundRegistered();
-          vibrate([30]);
-        } catch (err) {
-          console.error(err);
-          setStatus("コピー失敗", "warning");
-        }
+        setStatus("クリア");
       }
 
       function exportCsv() {
@@ -1093,7 +1031,30 @@
         a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-        setStatus(`CSV出力完了`, "success");
+        setStatus(`CSV出力: ${name}`);
+      }
+
+      function copyToClipboard() {
+        if (inventory.size === 0) {
+          setStatus("コピーするデータがないよ");
+          return;
+        }
+
+        const rows = [["JAN", "商品名", "個数"]];
+        for (const [code, row] of inventory.entries()) {
+          rows.push([code, row.name || "", String(row.qty)]);
+        }
+
+        const text = rows.map(r => r.join("	")).join("
+");
+        navigator.clipboard.writeText(text).then(() => {
+          setStatus("コピー完了");
+          showFlash("コピー完了");
+          soundRegistered();
+          vibrate(30);
+        }).catch(() => {
+          setStatus("コピー失敗");
+        });
       }
 
       function splitCsvLine(line) {
@@ -1174,7 +1135,7 @@
           }
 
           updateMasterSummary();
-          setStatus(`商品リスト読み込みOK`, "success");
+          setStatus(`商品リスト読み込みOK: ${productMaster.size}件`);
           return true;
         } catch (err) {
           console.error(err);
@@ -1304,7 +1265,7 @@
             advanced: [{ focusMode: "continuous" }]
           });
           scanning = true;
-          setStatus("カメラ起動", "success");
+          setStatus("カメラ起動");
           hideCameraGuide();
           scanLoop();
         } catch (err) {
@@ -1391,7 +1352,7 @@
       stopBtn.addEventListener("click", async () => {
         stopCamera();
         await releaseWakeLock();
-        setStatus("カメラ停止", "normal");
+        setStatus("カメラ停止");
         setStartGuide(true);
       });
 
@@ -1400,32 +1361,29 @@
         await startCamera();
       });
 
-      scanModeBtn.addEventListener("click", () => {
-        continuousScanMode = !continuousScanMode;
-        scanModeBtn.classList.toggle("active", continuousScanMode);
-        scanModeBtn.textContent = continuousScanMode ? "連続モード ON" : "連続モード OFF";
-        setStatus(continuousScanMode ? "連続スキャンモード ON" : "連続スキャンモード OFF", continuousScanMode ? "success" : "normal");
-      });
-
       exportBtn.addEventListener("click", exportCsv);
       copyBtn.addEventListener("click", copyToClipboard);
+      autoModeBtn.addEventListener("click", () => {
+        autoMode = !autoMode;
+        updateAutoModeButton();
+        setStatus(autoMode ? "連続モード ON" : "連続モード OFF");
+      });
       addBtn.addEventListener("click", addCurrentCode);
       clearCurrentBtn.addEventListener("click", clearCurrent);
 
       resetBtn.addEventListener("click", () => {
         if (!confirm("一覧を全削除する？")) return;
         inventory.clear();
-        updateLastRegistered("", 0, "");
         renderTable();
-        setStatus("全削除", "warning");
+        setStatus("全削除");
       });
-      lastCode.addEventListener("keydown", e => {
+
+      manualCode.addEventListener("keydown", e => {
         if (e.key === "Enter") {
           e.preventDefault();
-          const code = normalizeCode(lastCode.value);
-          lastCode.value = code;
-          const name = normalizeName(productName.value || getStoredName(code));
-          if (name) productName.value = name;
+          const code = normalizeCode(manualCode.value);
+          const name = normalizeName(manualName.value || getMasterName(code));
+          setDetectedFields(code, name);
           if (name) {
             qtyInput.focus({ preventScroll: true });
             qtyInput.select?.();
@@ -1501,17 +1459,17 @@
 
       renderTable();
       updateMasterSummary();
-      updateLastRegistered("", 0, "");
+      updateAutoModeButton();
 
       (async () => {
         const ok = await autoLoadMasterCsv();
         if (!ok) {
-          setStatus(window.isSecureContext ? "商品リストの読込に失敗しました" : "HTTPSで開いてね", "warning");
+          setStatus(window.isSecureContext ? "商品リストの読込に失敗しました" : "HTTPSで開いてね");
           if (window.isSecureContext) {
             showCameraGuide("商品リストの読込に失敗しました");
           }
         } else {
-          setStatus("商品リスト読み込みOK", "success");
+          setStatus("商品リスト読み込みOK");
           showCameraGuide("商品リスト読み込みOK / 開始を押してね");
         }
       })();
