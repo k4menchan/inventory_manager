@@ -223,7 +223,7 @@
   switchBtn.addEventListener('click', async ()=>{ useBackCamera=!useBackCamera; await startCamera(); });
   exportBtn.addEventListener('click', exportCsv); copyBtn.addEventListener('click', copyToClipboard);
   autoModeBtn.addEventListener('click', ()=>{ autoMode=!autoMode; updateAutoModeButton(); setStatus(autoMode ? '連続モード ON' : '連続モード OFF'); });
-  addBtn.addEventListener('click', addCurrentCode); clearCurrentBtn.addEventListener('click', clearCurrent);
+  addBtn.addEventListener('click', addCurrentCode);
   resetBtn.addEventListener('click', ()=>{ if(!confirm('一覧を全削除する？')) return; inventory.clear(); renderTable(); setStatus('全削除'); });
   codeInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); const code=normalizeCode(codeInput.value); const name=normalizeName(nameInput.value || getMasterName(code)); setDetectedFields(code,name); if(name) { qtyInput.focus({preventScroll:true}); qtyInput.select?.(); } else { nameInput.focus({preventScroll:true}); nameInput.select?.(); } } });
   nameInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); qtyInput.focus({preventScroll:true}); qtyInput.select?.(); } });
