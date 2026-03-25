@@ -28,7 +28,10 @@
     .camera-guide{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);max-width:92vw;padding:10px 14px;border-radius:14px;background:rgba(9,13,27,.82);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.14);color:#fff;font-size:14px;font-weight:800;text-align:center;z-index:6;opacity:0;pointer-events:none;transition:.18s ease;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .camera-guide.show{opacity:1}.camera-guide.input-mode{top:56px;bottom:auto}
     .panel{background:rgba(18,25,51,.96);border:1px solid var(--line);border-radius:18px;padding:8px}
-    .controls{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+    .controls{display:flex;flex-direction:column;gap:8px;}
+    .controls-row{display:grid;gap:8px;}
+    .controls-row:first-child{grid-template-columns: repeat(4,1fr);}
+    .controls-row:last-child{grid-template-columns: repeat(3,1fr);}
     .entry,.subrow{display:grid;grid-template-columns:1.05fr 1.5fr .7fr .8fr;gap:8px;margin-top:8px}
     button,input{width:100%;min-width:0;border:none;outline:none;border-radius:14px;font:inherit}
     button{padding:13px 10px;font-weight:800;color:var(--text);background:var(--panel2);border:1px solid var(--line)}
@@ -72,17 +75,20 @@
   </section>
 
   <section class="panel">
-   <div class="controls">
+<div class="controls">
+  <div class="controls-row">
     <button id="startBtn" class="primary">開始</button>
     <button id="stopBtn">停止</button>
     <button id="switchBtn">切替</button>
-
     <button id="autoModeBtn">連続ON</button>
+  </div>
 
+  <div class="controls-row">
     <button id="exportBtn" class="ok">CSV出力</button>
     <button id="copyBtn" class="ok">コピー</button>
     <button id="resetBtn" class="danger">全削除</button>
   </div>
+</div>
 
     <div class="entry">
       <input id="codeInput" class="focus-ring" inputmode="numeric" placeholder="コード（手入力可）" />
