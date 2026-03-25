@@ -133,9 +133,8 @@
   const flashEl = $('flash');
   const scanBoxEl = $('scanBox');
   const startBtn = $('startBtn'), stopBtn = $('stopBtn'), switchBtn = $('switchBtn'), exportBtn = $('exportBtn'), copyBtn = $('copyBtn'), resetBtn = $('resetBtn');
-  const codeInput = $('codeInput'), nameInput = $('nameInput'), qtyInput = $('qtyInput'), addBtn = $('addBtn'), clearCurrentBtn = $('clearCurrentBtn'), autoModeBtn = $('autoModeBtn');
-  const itemCount = $('itemCount'), totalQty = $('totalQty'), masterCount = $('masterCount'), tbody = $('tbody');
-  const qtySheet = $('qtySheet'), sheetCode = $('sheetCode'), sheetName = $('sheetName'), sheetNameInput = $('sheetNameInput'), sheetQty = $('sheetQty'), sheetAddBtn = $('sheetAddBtn'), sheetCloseBtn = $('sheetCloseBtn'), sheetCancelBtn = $('sheetCancelBtn'), sheetClearBtn = $('sheetClearBtn');
+　const codeInput = $('codeInput'), nameInput = $('nameInput'), qtyInput = $('qtyInput'), addBtn = $('addBtn'), autoModeBtn = $('autoModeBtn');
+　const itemCount = $('itemCount'), totalQty = $('totalQty'), tbody = $('tbody');  const qtySheet = $('qtySheet'), sheetCode = $('sheetCode'), sheetName = $('sheetName'), sheetNameInput = $('sheetNameInput'), sheetQty = $('sheetQty'), sheetAddBtn = $('sheetAddBtn'), sheetCloseBtn = $('sheetCloseBtn'), sheetCancelBtn = $('sheetCancelBtn'), sheetClearBtn = $('sheetClearBtn');
   const detectCanvas = document.createElement('canvas');
   const detectCtx = detectCanvas.getContext('2d', {willReadFrequently:true});
 
@@ -159,7 +158,6 @@
   function isProbablyProductCode(code){ return /^\d{8}$/.test(code) || /^\d{12}$/.test(code) || /^\d{13}$/.test(code); }
   function escapeCsv(v){ const s=String(v??''); return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s; }
   function getMasterName(code){ return productMaster.get(code) || ''; }
-  function updateMasterSummary(){ masterCount.textContent = String(productMaster.size); }
   function updateSummary(){ itemCount.textContent = String(inventory.size); let total=0; for (const row of inventory.values()) total += row.qty; totalQty.textContent = String(total); }
   function touchInventoryOrder(code,row){ inventory.delete(code); inventory.set(code,row); }
   function renderTable(){
