@@ -277,10 +277,7 @@
       background:#162344;
     }
 
-    #manualCode,#manualName{
-      font-size:14px;
-    }
-
+    
     .list{
       margin-top:8px;
       max-height:25dvh;
@@ -450,8 +447,8 @@
       </div>
 
       <div class="entry">
-        <input id="lastCode" class="focus-ring" readonly placeholder="コード" />
-        <input id="productName" class="focus-ring" placeholder="商品名" />
+        <input id="lastCode" class="focus-ring" inputmode="numeric" placeholder="コード（手入力可）" />
+        <input id="productName" class="focus-ring" placeholder="商品名（手入力可）" />
         <input id="qtyInput" class="focus-ring" type="number" min="1" step="1" value="1" inputmode="numeric" />
         <button id="addBtn" class="ok">登録</button>
       </div>
@@ -459,15 +456,8 @@
       <div class="mode-row">
         <div class="spacer"></div>
         <div class="spacer"></div>
-        <div class="spacer"></div>
-        <button id="autoModeBtn" class="primary">連続モード ON</button>
-      </div>
-
-      <div class="entry" style="margin-top:8px;">
-        <input id="manualCode" class="focus-ring" inputmode="numeric" placeholder="手入力コード" />
-        <input id="manualName" class="focus-ring" placeholder="商品名手入力(任意)" />
         <button id="clearCurrentBtn">クリア</button>
-        <div></div>
+        <button id="autoModeBtn" class="primary">連続モード ON</button>
       </div>
 
       <div class="list">
@@ -538,8 +528,6 @@
       const lastCode = document.getElementById("lastCode");
       const productName = document.getElementById("productName");
       const qtyInput = document.getElementById("qtyInput");
-      const manualCode = document.getElementById("manualCode");
-      const manualName = document.getElementById("manualName");
       const tbody = document.getElementById("tbody");
       const itemCount = document.getElementById("itemCount");
       const totalQty = document.getElementById("totalQty");
@@ -635,7 +623,7 @@
 
       function updateAutoModeButton() {
         autoModeBtn.textContent = autoMode ? "連続モード ON" : "連続モード OFF";
-        autoModeBtn.className = autoMode ? "primary" : "";
+        autoModeBtn.className = autoMode ? "ok" : "";
       }
 
       function showCameraGuide(message, mode = "normal") {
@@ -848,8 +836,6 @@
       function setDetectedFields(code, name = "") {
         lastCode.value = code || "";
         productName.value = name || "";
-        manualCode.value = "";
-        manualName.value = "";
       }
 
       function openQtySheet(code, name) {
@@ -954,8 +940,8 @@
       }
 
       function addCurrentCode() {
-        const code = normalizeCode(lastCode.value || manualCode.value);
-        const inputName = normalizeName(productName.value || manualName.value || getMasterName(code));
+        const code = normalizeCode(lastCode.value);
+        const inputName = normalizeName(productName.value || getMasterName(code));
         const qty = Math.floor(Number(qtyInput.value));
 
         if (!code) return setStatus("コード未入力");
@@ -968,7 +954,7 @@
         renderTable();
         updateMasterSummary();
 
-        setRegisteredStatus(name, qty);
+        setRegisteredStatus(inputName, qty);
         showFlash(`登録 ${qty}`);
         soundRegistered();
         vibrate([50, 30, 70]);
@@ -992,7 +978,7 @@
         renderTable();
         updateMasterSummary();
 
-        setRegisteredStatus(inputName, qty);
+        setRegisteredStatus(name, qty);
         showFlash(`登録 ${qty}`);
         soundRegistered();
         vibrate([50, 30, 70]);
@@ -1082,30 +1068,60 @@
         return out;
       }
 
-      function parseCsv(text) {
-        const lines = text.replace(/^\uFEFF/, "").split(/\r\n|\n|\r/).filter(l => l.trim() !== "");
-        if (!lines.length) return { ok: false, error: "CSVが空です" };
+      function parseCsvHeader(text) {
+        const lines = text.replace(/^﻿/, "").split(/
+|
+|
+/);
+        let headerLine = "";
+        let startIndex = 0;
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].trim() !== "") {
+            headerLine = lines[i];
+            startIndex = i + 1;
+            break;
+          }
+        }
+        if (!headerLine) return { ok: false, error: "CSVが空です" };
 
-        const header = splitCsvLine(lines[0]).map(v => v.trim().toLowerCase());
+        const header = splitCsvLine(headerLine).map(v => v.trim().toLowerCase());
         const janIdx = header.findIndex(h => h === "jan" || h === "code");
         const nameIdx = header.findIndex(h => h === "name" || h === "product" || h === "product_name");
-
         if (janIdx === -1 || nameIdx === -1) {
           return { ok: false, error: "ヘッダは jan,name にしてください" };
         }
+        return { ok: true, lines, startIndex, janIdx, nameIdx };
+      }
 
+      async function parseCsvAsync(text) {
+        const headerInfo = parseCsvHeader(text);
+        if (!headerInfo.ok) return headerInfo;
+
+        const { lines, startIndex, janIdx, nameIdx } = headerInfo;
         const map = new Map();
         let skipped = 0;
+        const chunkSize = 300;
+        const total = Math.max(lines.length - startIndex, 1);
 
-        for (let i = 1; i < lines.length; i++) {
-          const cols = splitCsvLine(lines[i]);
-          const code = normalizeCode(cols[janIdx] ?? "");
-          const name = normalizeName(cols[nameIdx] ?? "");
-          if (!code || !name) {
-            skipped++;
-            continue;
+        for (let i = startIndex; i < lines.length; i += chunkSize) {
+          const end = Math.min(i + chunkSize, lines.length);
+          for (let j = i; j < end; j++) {
+            const line = lines[j];
+            if (!line || line.trim() === "") continue;
+            const cols = splitCsvLine(line);
+            const code = normalizeCode(cols[janIdx] ?? "");
+            const name = normalizeName(cols[nameIdx] ?? "");
+            if (!code || !name) {
+              skipped++;
+              continue;
+            }
+            map.set(code, name);
           }
-          map.set(code, name);
+          const done = Math.min(end - startIndex, total);
+          if (done < total) {
+            setStatus(`商品リスト読み込み中... ${done}/${total}`);
+            await new Promise(requestAnimationFrame);
+          }
         }
 
         return { ok: true, map, skipped };
@@ -1121,8 +1137,9 @@
             return false;
           }
 
+          setStatus("商品リスト読み込み中...");
           const text = await res.text();
-          const result = parseCsv(text);
+          const result = await parseCsvAsync(text);
 
           if (!result.ok) {
             setStatus(`商品リスト読込失敗: ${result.error}`);
@@ -1377,13 +1394,13 @@
         renderTable();
         setStatus("全削除");
       });
-
-      manualCode.addEventListener("keydown", e => {
+      lastCode.addEventListener("keydown", e => {
         if (e.key === "Enter") {
           e.preventDefault();
-          const code = normalizeCode(manualCode.value);
-          const name = normalizeName(manualName.value || getMasterName(code));
-          setDetectedFields(code, name);
+          const code = normalizeCode(lastCode.value);
+          lastCode.value = code;
+          const name = normalizeName(productName.value || getMasterName(code) || inventory.get(code)?.name || "");
+          if (name && !productName.value) productName.value = name;
           if (name) {
             qtyInput.focus({ preventScroll: true });
             qtyInput.select?.();
