@@ -80,7 +80,7 @@
     <button id="startBtn" class="primary">開始</button>
     <button id="stopBtn">停止</button>
     <button id="switchBtn">切替</button>
-    <button id="autoModeBtn">連続ON</button>
+    <button id="autoModeBtn">連続OFF</button>
   </div>
 
   <div class="controls-row">
@@ -113,11 +113,10 @@
         <button id="sheetAddBtn" class="ok">登録</button>
       </div>
       <div class="qty-pad">
-        <button data-setqty="1">1</button><button data-setqty="5">5</button><button data-setqty="10">10</button>
         <button data-key="1">1</button><button data-key="2">2</button><button data-key="3">3</button>
         <button data-key="4">4</button><button data-key="5">5</button><button data-key="6">6</button>
         <button data-key="7">7</button><button data-key="8">8</button><button data-key="9">9</button>
-        <button data-key="clear">C</button><button data-key="0">0</button><button id="sheetCloseBtn">閉じる</button>
+        <button data-key="clear">C</button><button data-key="0">0</button><button id="sheetPlusOneBtn">＋1</button>
       </div>
       <div class="sheet-actions"><button id="sheetCancelBtn">キャンセル</button><button id="sheetClearBtn">入力クリア</button></div>
     </div>
@@ -134,7 +133,7 @@
   const scanBoxEl = $('scanBox');
   const startBtn = $('startBtn'), stopBtn = $('stopBtn'), switchBtn = $('switchBtn'), exportBtn = $('exportBtn'), copyBtn = $('copyBtn'), resetBtn = $('resetBtn');
 　const codeInput = $('codeInput'), nameInput = $('nameInput'), qtyInput = $('qtyInput'), addBtn = $('addBtn'), autoModeBtn = $('autoModeBtn');
-　const itemCount = $('itemCount'), totalQty = $('totalQty'), tbody = $('tbody');  const qtySheet = $('qtySheet'), sheetCode = $('sheetCode'), sheetName = $('sheetName'), sheetNameInput = $('sheetNameInput'), sheetQty = $('sheetQty'), sheetAddBtn = $('sheetAddBtn'), sheetCloseBtn = $('sheetCloseBtn'), sheetCancelBtn = $('sheetCancelBtn'), sheetClearBtn = $('sheetClearBtn');
+　const itemCount = $('itemCount'), totalQty = $('totalQty'), tbody = $('tbody');  const qtySheet = $('qtySheet'), sheetCode = $('sheetCode'), sheetName = $('sheetName'), sheetNameInput = $('sheetNameInput'), sheetQty = $('sheetQty'), sheetAddBtn = $('sheetAddBtn'), sheetPlusOneBtn = $('sheetPlusOneBtn'), sheetCancelBtn = $('sheetCancelBtn'), sheetClearBtn = $('sheetClearBtn');
   const detectCanvas = document.createElement('canvas');
   const detectCtx = detectCanvas.getContext('2d', {willReadFrequently:true});
 
@@ -142,7 +141,7 @@
   let candidateCode = '', candidateCount = 0;
   const REQUIRED_CONSECUTIVE_DETECTIONS = 2, SCAN_COOLDOWN_MS = 2200;
   const DETECT_REGION = {x:0.10, y:0.20, w:0.80, h:0.55};
-  let audioCtx = null, wakeLock = null, autoMode = true;
+  let audioCtx = null, wakeLock = null, autoMode = false;
   const inventory = new Map();
   const productMaster = new Map();
 
@@ -153,6 +152,10 @@
   function truncateText(text, max=20){ const s=String(text||'').trim(); return s.length>max ? s.slice(0,max)+'…' : s; }
   function setRegisteredStatus(name, qty, prefix='登録'){ setStatus(`${prefix}: ${truncateText(name||'商品名未設定',20)} ×${qty}`); }
   function updateAutoModeButton(){ autoModeBtn.textContent = autoMode ? '連続モード ON' : '連続モード OFF'; autoModeBtn.className = autoMode ? 'warn' : ''; }
+  function prepareQtyFieldForOverwrite(el){ if(!el) return; const v=String(el.value ?? ''); if(v==='' || v==='1'){ el.dataset.overwriteReady='1'; requestAnimationFrame(()=>{ try{ el.select?.(); }catch{} el.classList.add('qty-selected'); }); } else { delete el.dataset.overwriteReady; el.classList.remove('qty-selected'); } }
+  function clearQtyOverwriteState(el){ if(!el) return; delete el.dataset.overwriteReady; el.classList.remove('qty-selected'); }
+  function setQtyValue(el, value){ if(!el) return; el.value=String(value); clearQtyOverwriteState(el); }
+  function appendQtyDigit(el, digit){ if(!el) return; const overwrite = el.dataset.overwriteReady === '1' || String(el.value ?? '') === '0'; el.value = overwrite ? String(digit) : String(el.value ?? '') + String(digit); clearQtyOverwriteState(el); feedbackQty(); }
   function normalizeCode(code){ return String(code||'').replace(/[^\dA-Za-z]/g,'').trim(); }
   function normalizeName(name){ return String(name||'').trim(); }
   function isProbablyProductCode(code){ return /^\d{8}$/.test(code) || /^\d{12}$/.test(code) || /^\d{13}$/.test(code); }
@@ -189,17 +192,17 @@
   function soundRegistered(){ playTone(880,0.05,'triangle',0.04,0); playTone(1174,0.06,'triangle',0.045,0.05); playTone(1567,0.09,'triangle',0.05,0.10); }
   function feedbackQty(){ soundQty(); vibrate(20); }
   function setDetectedFields(code,name=''){ codeInput.value=code||''; nameInput.value=name||''; }
-  function openQtySheet(code,name){ sheetCode.textContent=code||'-'; sheetName.textContent=name||'商品名未登録'; sheetNameInput.value=name||''; sheetQty.value='1'; qtySheet.classList.add('show'); showGuide('入力待ち：外側タップで閉じる','input'); setTimeout(()=>{ if(sheetNameInput.value){ sheetQty.focus({preventScroll:true}); } else { sheetNameInput.focus({preventScroll:true}); sheetNameInput.select?.(); } },30); }
+  function openQtySheet(code,name){ sheetCode.textContent=code||'-'; sheetName.textContent=name||'商品名未登録'; sheetNameInput.value=name||''; setQtyValue(sheetQty, 1); qtySheet.classList.add('show'); showGuide('入力待ち：外側タップで閉じる','input'); setTimeout(()=>{ if(sheetNameInput.value){ sheetQty.focus({preventScroll:true}); prepareQtyFieldForOverwrite(sheetQty); } else { sheetNameInput.focus({preventScroll:true}); sheetNameInput.select?.(); } },30); }
   function closeQtySheet(){ qtySheet.classList.remove('show'); if(scanning) hideGuide(); else setStartGuide(); }
-  function cancelInputWait(){ setDetectedFields('',''); qtyInput.value='1'; closeQtySheet(); }
-  function clearSheetInputs(){ sheetNameInput.value=''; sheetQty.value='1'; sheetNameInput.focus({preventScroll:true}); }
+  function cancelInputWait(){ setDetectedFields('',''); setQtyValue(qtyInput, 1); closeQtySheet(); }
+  function clearSheetInputs(){ sheetNameInput.value=''; setQtyValue(sheetQty, 1); clearQtyOverwriteState(sheetQty); sheetNameInput.focus({preventScroll:true}); }
   function addOrUpdateMaster(code,name){ const c=normalizeCode(code), n=normalizeName(name); if(c&&n) productMaster.set(c,n); }
   function addInventory(code,name,qty){ const current=inventory.get(code); if(current){ current.qty+=qty; if(name) current.name=name; touchInventoryOrder(code,current); } else { inventory.set(code,{name:name||'', qty}); } }
   function maybeAutoAddScanned(code){ const knownName = getMasterName(code) || (inventory.get(code)?.name || ''); if (!autoMode || !knownName) return false; addInventory(code, knownName, 1); renderTable(); setRegisteredStatus(knownName,1,'連続登録'); showFlash('＋1'); soundRegistered(); vibrate([40]); return true; }
-  function applyDetectedCode(code){ const matchedName=getMasterName(code) || (inventory.get(code)?.name || ''); if (maybeAutoAddScanned(code)) return; setDetectedFields(code,matchedName); qtyInput.value='1'; showFlash(matchedName ? `読取 ${code}` : `読取 ${code} / 名称未登録`); vibrate(matchedName ? [40,30,40] : [120]); matchedName ? soundHitMatched() : soundHitUnmatched(); setStatus(matchedName ? `読取成功: ${truncateText(matchedName,20)}` : `読取成功: ${code}`); openQtySheet(code,matchedName); }
-  function addCurrentCode(){ const code=normalizeCode(codeInput.value); const inputName=normalizeName(nameInput.value || getMasterName(code)); const qty=Math.floor(Number(qtyInput.value)); if(!code) return setStatus('コード未入力'); if(!isProbablyProductCode(code)) return setStatus('コード形式が不正っぽい'); if(!Number.isFinite(qty)||qty<=0) return setStatus('数量は1以上'); if(!inputName) return setStatus('商品名が空です'); addOrUpdateMaster(code,inputName); addInventory(code,inputName,qty); renderTable(); updateMasterSummary(); setRegisteredStatus(inputName,qty); showFlash(`登録 ${qty}`); soundRegistered(); vibrate([50,30,70]); setDetectedFields('',''); qtyInput.value='1'; closeQtySheet(); }
-  function addFromSheet(){ const code=normalizeCode(sheetCode.textContent); const name=normalizeName(sheetNameInput.value || getMasterName(code)); const qty=Math.floor(Number(sheetQty.value)); if(!code||!isProbablyProductCode(code)) return setStatus('シート内コードが不正'); if(!name) return setStatus('商品名が空です'); if(!Number.isFinite(qty)||qty<=0) return setStatus('数量は1以上'); addOrUpdateMaster(code,name); addInventory(code,name,qty); renderTable(); updateMasterSummary(); setRegisteredStatus(name,qty); showFlash(`登録 ${qty}`); soundRegistered(); vibrate([50,30,70]); setDetectedFields('',''); qtyInput.value='1'; closeQtySheet(); }
-  function clearCurrent(){ setDetectedFields('',''); qtyInput.value='1'; closeQtySheet(); setStatus('クリア'); }
+  function applyDetectedCode(code){ const matchedName=getMasterName(code) || (inventory.get(code)?.name || ''); if (maybeAutoAddScanned(code)) return; setDetectedFields(code,matchedName); setQtyValue(qtyInput, 1); showFlash(matchedName ? `読取 ${code}` : `読取 ${code} / 名称未登録`); vibrate(matchedName ? [40,30,40] : [120]); matchedName ? soundHitMatched() : soundHitUnmatched(); setStatus(matchedName ? `読取成功: ${truncateText(matchedName,20)}` : `読取成功: ${code}`); openQtySheet(code,matchedName); }
+  function addCurrentCode(){ const code=normalizeCode(codeInput.value); const inputName=normalizeName(nameInput.value || getMasterName(code)); const qty=Math.floor(Number(qtyInput.value)); if(!code) return setStatus('コード未入力'); if(!isProbablyProductCode(code)) return setStatus('コード形式が不正っぽい'); if(!Number.isFinite(qty)||qty<=0) return setStatus('数量は1以上'); if(!inputName) return setStatus('商品名が空です'); addOrUpdateMaster(code,inputName); addInventory(code,inputName,qty); renderTable(); updateMasterSummary(); setRegisteredStatus(inputName,qty); showFlash(`登録 ${qty}`); soundRegistered(); vibrate([50,30,70]); setDetectedFields('',''); setQtyValue(qtyInput, 1); closeQtySheet(); }
+  function addFromSheet(){ const code=normalizeCode(sheetCode.textContent); const name=normalizeName(sheetNameInput.value || getMasterName(code)); const qty=Math.floor(Number(sheetQty.value)); if(!code||!isProbablyProductCode(code)) return setStatus('シート内コードが不正'); if(!name) return setStatus('商品名が空です'); if(!Number.isFinite(qty)||qty<=0) return setStatus('数量は1以上'); addOrUpdateMaster(code,name); addInventory(code,name,qty); renderTable(); updateMasterSummary(); setRegisteredStatus(name,qty); showFlash(`登録 ${qty}`); soundRegistered(); vibrate([50,30,70]); setDetectedFields('',''); setQtyValue(qtyInput, 1); closeQtySheet(); }
+  function clearCurrent(){ setDetectedFields('',''); setQtyValue(qtyInput, 1); closeQtySheet(); setStatus('クリア'); }
   function exportCsv(){ const rows=[['JAN','商品名','個数']]; for(const [code,row] of inventory.entries()) rows.push([code,row.name||'',String(row.qty)]); const csv=rows.map(r=>r.map(escapeCsv).join(',')).join('\r\n'); const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const d=new Date(), p=n=>String(n).padStart(2,'0'); const name=`inventory_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.csv`; const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000); setStatus(`CSV出力: ${name}`); }
   function copyToClipboard(){ if(inventory.size===0) return setStatus('コピーするデータがないよ'); const rows=[['JAN','商品名','個数']]; for(const [code,row] of inventory.entries()) rows.push([code,row.name||'',String(row.qty)]); const text=rows.map(r=>r.join('\t')).join('\n'); navigator.clipboard.writeText(text).then(()=>{ setStatus('クリップボードにコピーしたよ'); showFlash('コピー完了'); soundRegistered(); vibrate(30); }).catch(()=>setStatus('コピー失敗')); }
   function splitCsvLine(line){ const out=[]; let cur='', inQuotes=false; for(let i=0;i<line.length;i++){ const ch=line[i]; if(ch==='"'){ if(inQuotes && line[i+1]==='"'){ cur+='"'; i++; } else inQuotes=!inQuotes; } else if(ch===',' && !inQuotes){ out.push(cur); cur=''; } else cur+=ch; } out.push(cur); return out; }
@@ -227,15 +230,18 @@
   addBtn.addEventListener('click', addCurrentCode);
   resetBtn.addEventListener('click', ()=>{ if(!confirm('一覧を全削除する？')) return; inventory.clear(); renderTable(); setStatus('全削除'); });
   codeInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); const code=normalizeCode(codeInput.value); const name=normalizeName(nameInput.value || getMasterName(code)); setDetectedFields(code,name); if(name) { qtyInput.focus({preventScroll:true}); qtyInput.select?.(); } else { nameInput.focus({preventScroll:true}); nameInput.select?.(); } } });
-  nameInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); qtyInput.focus({preventScroll:true}); qtyInput.select?.(); } });
-  qtyInput.addEventListener('input', feedbackQty); sheetQty.addEventListener('input', feedbackQty);
+  nameInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); qtyInput.focus({preventScroll:true}); prepareQtyFieldForOverwrite(qtyInput); } });
+  qtyInput.addEventListener('focus', ()=>prepareQtyFieldForOverwrite(qtyInput));
+  sheetQty.addEventListener('focus', ()=>prepareQtyFieldForOverwrite(sheetQty));
+  qtyInput.addEventListener('pointerdown', ()=>prepareQtyFieldForOverwrite(qtyInput));
+  sheetQty.addEventListener('pointerdown', ()=>prepareQtyFieldForOverwrite(sheetQty));
+  qtyInput.addEventListener('input', ()=>{ clearQtyOverwriteState(qtyInput); feedbackQty(); }); sheetQty.addEventListener('input', ()=>{ clearQtyOverwriteState(sheetQty); feedbackQty(); });
   qtyInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addCurrentCode(); } });
-  sheetNameInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); sheetQty.focus({preventScroll:true}); } });
+  sheetNameInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); sheetQty.focus({preventScroll:true}); prepareQtyFieldForOverwrite(sheetQty); } });
   sheetQty.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addFromSheet(); } });
-  sheetAddBtn.addEventListener('click', addFromSheet); sheetCloseBtn.addEventListener('click', closeQtySheet); sheetCancelBtn.addEventListener('click', cancelInputWait); sheetClearBtn.addEventListener('click', clearSheetInputs);
+  sheetAddBtn.addEventListener('click', addFromSheet); sheetPlusOneBtn.addEventListener('click', ()=>{ const current=Math.max(0, Math.floor(Number(sheetQty.value)||0)); setQtyValue(sheetQty, current + 1); feedbackQty(); }); sheetCancelBtn.addEventListener('click', cancelInputWait); sheetClearBtn.addEventListener('click', clearSheetInputs);
   qtySheet.addEventListener('click', e=>{ if(e.target===qtySheet) cancelInputWait(); });
-  document.querySelectorAll('[data-setqty]').forEach(btn=> btn.addEventListener('click', ()=>{ sheetQty.value=btn.dataset.setqty; feedbackQty(); }));
-  document.querySelectorAll('[data-key]').forEach(btn=> btn.addEventListener('click', ()=>{ const key=btn.dataset.key; sheetQty.value = key==='clear' ? '' : ((sheetQty.value==='0'?'':sheetQty.value)+key); feedbackQty(); }));
+  document.querySelectorAll('[data-key]').forEach(btn=> btn.addEventListener('click', ()=>{ const key=btn.dataset.key; if(key==='clear'){ setQtyValue(sheetQty, ''); feedbackQty(); return; } appendQtyDigit(sheetQty, key); }));
 
   renderTable(); updateMasterSummary(); updateAutoModeButton();
   (async()=>{ const ok = await autoLoadMasterCsv(); if(!ok){ setStatus(window.isSecureContext ? '商品リストの読込に失敗しました' : 'HTTPSで開いてね'); if(window.isSecureContext) showGuide('商品リストの読込に失敗しました'); } else { setStatus('商品リスト読み込みOK'); showGuide('商品リスト読み込みOK / 開始を押してね'); } })();
