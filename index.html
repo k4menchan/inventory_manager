@@ -177,6 +177,7 @@
       tr.children[0].textContent = code;
       tr.children[1].textContent = row.name || '';
       tr.children[2].textContent = String(row.qty);
+      const displayCode = key.startsWith('NAME:') ? '' : key;
       const wrap=document.createElement('div'); wrap.className='mini-actions';
       const b1=document.createElement('button'); b1.textContent='+1'; b1.onclick=()=>{ row.qty+=1; touchInventoryOrder(code,row); feedbackQty(); renderTable(); };
       const b2=document.createElement('button'); b2.textContent='-1'; b2.onclick=()=>{ row.qty-=1; if (row.qty<=0) inventory.delete(code); else touchInventoryOrder(code,row); feedbackQty(); renderTable(); };
@@ -285,8 +286,45 @@
     closeQtySheet();
   }
   function clearCurrent(){ setDetectedFields('',''); setQtyValue(qtyInput, 1); closeQtySheet(); setStatus('クリア'); }
-  function exportCsv(){ const rows=[['JAN','商品名','個数']]; for(const [code,row] of inventory.entries()) rows.push([code,row.name||'',String(row.qty)]); const csv=rows.map(r=>r.map(escapeCsv).join(',')).join('\r\n'); const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const d=new Date(), p=n=>String(n).padStart(2,'0'); const name=`inventory_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.csv`; const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000); setStatus(`CSV出力: ${name}`); }
-  function copyToClipboard(){ if(inventory.size===0) return setStatus('コピーするデータがないよ'); const rows=[['JAN','商品名','個数']]; for(const [code,row] of inventory.entries()) rows.push([code,row.name||'',String(row.qty)]); const text=rows.map(r=>r.join('\t')).join('\n'); navigator.clipboard.writeText(text).then(()=>{ setStatus('クリップボードにコピーしたよ'); showFlash('コピー完了'); soundRegistered(); vibrate(30); }).catch(()=>setStatus('コピー失敗')); }
+  function exportCsv(){
+    const rows = [['JAN','商品名','個数']];
+  
+    for(const [key, row] of inventory.entries()){
+      const jan = key.startsWith('NAME:') ? '' : key;
+      rows.push([jan, row.name || '', String(row.qty)]);
+    }
+  
+    const csv = rows.map(r=>r.map(escapeCsv).join(',')).join('\r\n');
+    const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const d = new Date(), p = n => String(n).padStart(2,'0');
+    const name = `inventory_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.csv`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    setStatus(`CSV出力: ${name}`);
+  }
+    function copyToClipboard(){
+    if(inventory.size===0) return setStatus('コピーするデータがないよ');
+  
+    const rows = [['JAN','商品名','個数']];
+    for(const [key, row] of inventory.entries()){
+      const jan = key.startsWith('NAME:') ? '' : key;
+      rows.push([jan, row.name || '', String(row.qty)]);
+    }
+  
+    const text = rows.map(r=>r.join('\t')).join('\n');
+    navigator.clipboard.writeText(text).then(()=>{
+      setStatus('クリップボードにコピーしたよ');
+      showFlash('コピー完了');
+      soundRegistered();
+      vibrate(30);
+    }).catch(()=>setStatus('コピー失敗'));
+  }
   function splitCsvLine(line){ const out=[]; let cur='', inQuotes=false; for(let i=0;i<line.length;i++){ const ch=line[i]; if(ch==='"'){ if(inQuotes && line[i+1]==='"'){ cur+='"'; i++; } else inQuotes=!inQuotes; } else if(ch===',' && !inQuotes){ out.push(cur); cur=''; } else cur+=ch; } out.push(cur); return out; }
   function parseCsv(text){ const lines=text.replace(/^\uFEFF/,'').split(/\r\n|\n|\r/).filter(l=>l.trim()!==''); if(!lines.length) return {ok:false,error:'CSVが空です'}; const header=splitCsvLine(lines[0]).map(v=>v.trim().toLowerCase()); const janIdx=header.findIndex(h=>h==='jan'||h==='code'); const nameIdx=header.findIndex(h=>h==='name'||h==='product'||h==='product_name'); if(janIdx===-1||nameIdx===-1) return {ok:false,error:'ヘッダは jan,name にしてください'}; const map=new Map(); let skipped=0; for(let i=1;i<lines.length;i++){ const cols=splitCsvLine(lines[i]); const code=normalizeCode(cols[janIdx]??''); const name=normalizeName(cols[nameIdx]??''); if(!code||!name){ skipped++; continue; } map.set(code,name); } return {ok:true,map,skipped}; }
   async function autoLoadMasterCsv(){ try{ const masterUrl=new URL('master.csv',location.href).toString(); const res=await fetch(masterUrl,{cache:'no-store'}); if(!res.ok){ setStatus(`商品リスト取得失敗: ${res.status}`); return false; } const text=await res.text(); const result=parseCsv(text); if(!result.ok){ setStatus(`商品リスト読込失敗: ${result.error}`); return false; } productMaster.clear(); for(const [code,name] of result.map.entries()) productMaster.set(code,name); updateMasterSummary(); setStatus(`商品リスト読み込みOK: ${productMaster.size}件`); return true; } catch(err){ console.error(err); setStatus('商品リスト自動読込失敗'); return false; } }
