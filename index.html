@@ -235,50 +235,62 @@
   }
   function applyDetectedCode(code){ const matchedName=getMasterName(code) || (inventory.get(code)?.name || ''); if (maybeAutoAddScanned(code)) return; setDetectedFields(code,matchedName); setQtyValue(qtyInput, 1); showFlash(matchedName ? `読取 ${code}` : `読取 ${code} / 名称未登録`); vibrate(matchedName ? [40,30,40] : [120]); matchedName ? soundHitMatched() : soundHitUnmatched(); setStatus(matchedName ? `読取成功: ${truncateText(matchedName,20)}` : `読取成功: ${code}`); openQtySheet(code,matchedName); }
   function addCurrentCode(){
-    const code = normalizeCode(codeInput.value);
+    const rawCode = normalizeCode(codeInput.value);
+    const code = rawCode === '-' ? '' : rawCode;
     const typedName = normalizeName(nameInput.value);
     const masterName = code ? normalizeName(getMasterName(code)) : '';
-    const inputName = typedName || masterName;
+    const existingName = code ? normalizeName(getInventoryName(code)) : '';
+    const finalName = typedName || masterName || existingName || '';
     const qty = Math.floor(Number(qtyInput.value));
 
-    if(!code && !inputName) return setStatus('JANか商品名を入れてね');
+    if(!code && !finalName) return setStatus('JANか商品名を入れてね');
     if(code && !isProbablyProductCode(code)) return setStatus('コード形式が不正っぽい');
     if(!Number.isFinite(qty) || qty <= 0) return setStatus('数量は1以上');
 
-    const inventoryKey = makeInventoryKey(code, inputName);
+    const inventoryKey = makeInventoryKey(code, finalName);
     if(!inventoryKey) return setStatus('JANか商品名を入れてね');
 
-    const finalName = normalizeName(inputName || getInventoryNameByKey(inventoryKey) || code);
-
-    if(code && finalName){
-      addOrUpdateMaster(code, finalName);
-    }
-
+    if(code && finalName) addOrUpdateMaster(code, finalName);
     addInventory(inventoryKey, finalName, qty);
-    renderTable(); updateMasterSummary(); setRegisteredStatus(finalName || code,qty); showFlash(`登録 ${qty}`); soundRegistered(); vibrate([50,30,70]); setDetectedFields('',''); setQtyValue(qtyInput, 1); closeQtySheet();
+
+    renderTable();
+    updateMasterSummary();
+    setRegisteredStatus(finalName || code || '登録', qty);
+    showFlash(`登録 ${qty}`);
+    soundRegistered();
+    vibrate([50,30,70]);
+    setDetectedFields('', '');
+    setQtyValue(qtyInput, 1);
+    closeQtySheet();
   }
   function addFromSheet(){
-    const code = normalizeCode(sheetCode.textContent);
+    const rawCode = normalizeCode(sheetCode.textContent);
+    const code = rawCode === '-' ? '' : rawCode;
     const typedName = normalizeName(sheetNameInput.value);
     const masterName = code ? normalizeName(getMasterName(code)) : '';
-    const name = typedName || masterName;
+    const existingName = code ? normalizeName(getInventoryName(code)) : '';
+    const finalName = typedName || masterName || existingName || '';
     const qty = Math.floor(Number(sheetQty.value));
 
-    if(!code && !name) return setStatus('JANか商品名を入れてね');
+    if(!code && !finalName) return setStatus('JANか商品名を入れてね');
     if(code && !isProbablyProductCode(code)) return setStatus('シート内コードが不正');
     if(!Number.isFinite(qty) || qty <= 0) return setStatus('数量は1以上');
 
-    const inventoryKey = makeInventoryKey(code, name);
+    const inventoryKey = makeInventoryKey(code, finalName);
     if(!inventoryKey) return setStatus('JANか商品名を入れてね');
 
-    const finalName = normalizeName(name || getInventoryNameByKey(inventoryKey) || code);
-
-    if(code && finalName){
-      addOrUpdateMaster(code, finalName);
-    }
-
+    if(code && finalName) addOrUpdateMaster(code, finalName);
     addInventory(inventoryKey, finalName, qty);
-    renderTable(); updateMasterSummary(); setRegisteredStatus(finalName || code,qty); showFlash(`登録 ${qty}`); soundRegistered(); vibrate([50,30,70]); setDetectedFields('',''); setQtyValue(qtyInput, 1); closeQtySheet();
+
+    renderTable();
+    updateMasterSummary();
+    setRegisteredStatus(finalName || code || '登録', qty);
+    showFlash(`登録 ${qty}`);
+    soundRegistered();
+    vibrate([50,30,70]);
+    setDetectedFields('', '');
+    setQtyValue(qtyInput, 1);
+    closeQtySheet();
   }
   function clearCurrent(){ setDetectedFields('',''); setQtyValue(qtyInput, 1); closeQtySheet(); setStatus('クリア'); }
   function exportCsv(){
