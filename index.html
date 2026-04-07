@@ -139,12 +139,8 @@
   const detectCtx = detectCanvas.getContext('2d', {willReadFrequently:true});
 
   let stream = null, detector = null, scanning = false, rafId = 0, useBackCamera = true, lastDetectedRaw = '', lastDetectedAt = 0, flashTimer = 0;
-  let candidateCode = '', candidateCount = 0;
-  
-  const REQUIRED_CONSECUTIVE_DETECTIONS = 2;
   const SCAN_COOLDOWN_MS = 2200;
   const DETECT_REGION = {x:0.10, y:0.20, w:0.80, h:0.55};
-  
   let audioCtx = null, wakeLock = null, autoMode = false;
   
   let scannerEngine = 'native'; // 'native' | 'zxing'
@@ -204,11 +200,90 @@
   function cancelInputWait(){ setDetectedFields('',''); setQtyValue(qtyInput, 1); closeQtySheet(); }
   function clearSheetInputs(){ sheetNameInput.value=''; setQtyValue(sheetQty, 1); clearQtyOverwriteState(sheetQty); sheetNameInput.focus({preventScroll:true}); }
   function addOrUpdateMaster(code,name){ const c=normalizeCode(code), n=normalizeName(name); if(c&&n) productMaster.set(c,n); }
-  function addInventory(code,name,qty){ const current=inventory.get(code); if(current){ current.qty+=qty; if(name) current.name=name; touchInventoryOrder(code,current); } else { inventory.set(code,{name:name||'', qty}); } }
+  function addInventory(key, name, qty){
+    const safeKey = String(key || '').trim();
+    const safeName = normalizeName(name || '');
+    const prev = inventory.get(safeKey);
+  
+    if(prev){
+      prev.qty += qty;
+      if(safeName) prev.name = safeName;
+    }else{
+      inventory.set(safeKey, { name: safeName, qty });
+    }
+  }
   function maybeAutoAddScanned(code){ const knownName = getMasterName(code) || (inventory.get(code)?.name || ''); if (!autoMode || !knownName) return false; addInventory(code, knownName, 1); renderTable(); setRegisteredStatus(knownName,1,'連続登録'); showFlash('＋1'); soundRegistered(); vibrate([40]); return true; }
   function applyDetectedCode(code){ const matchedName=getMasterName(code) || (inventory.get(code)?.name || ''); if (maybeAutoAddScanned(code)) return; setDetectedFields(code,matchedName); setQtyValue(qtyInput, 1); showFlash(matchedName ? `読取 ${code}` : `読取 ${code} / 名称未登録`); vibrate(matchedName ? [40,30,40] : [120]); matchedName ? soundHitMatched() : soundHitUnmatched(); setStatus(matchedName ? `読取成功: ${truncateText(matchedName,20)}` : `読取成功: ${code}`); openQtySheet(code,matchedName); }
-  function addCurrentCode(){ const code=normalizeCode(codeInput.value); const inputName=normalizeName(nameInput.value || getMasterName(code)); const qty=Math.floor(Number(qtyInput.value)); if(!code) return setStatus('コード未入力'); if(!isProbablyProductCode(code)) return setStatus('コード形式が不正っぽい'); if(!Number.isFinite(qty)||qty<=0) return setStatus('数量は1以上'); if(!inputName) return setStatus('商品名が空です'); addOrUpdateMaster(code,inputName); addInventory(code,inputName,qty); renderTable(); updateMasterSummary(); setRegisteredStatus(inputName,qty); showFlash(`登録 ${qty}`); soundRegistered(); vibrate([50,30,70]); setDetectedFields('',''); setQtyValue(qtyInput, 1); closeQtySheet(); }
-  function addFromSheet(){ const code=normalizeCode(sheetCode.textContent); const name=normalizeName(sheetNameInput.value || getMasterName(code)); const qty=Math.floor(Number(sheetQty.value)); if(!code||!isProbablyProductCode(code)) return setStatus('シート内コードが不正'); if(!name) return setStatus('商品名が空です'); if(!Number.isFinite(qty)||qty<=0) return setStatus('数量は1以上'); addOrUpdateMaster(code,name); addInventory(code,name,qty); renderTable(); updateMasterSummary(); setRegisteredStatus(name,qty); showFlash(`登録 ${qty}`); soundRegistered(); vibrate([50,30,70]); setDetectedFields('',''); setQtyValue(qtyInput, 1); closeQtySheet(); }
+  function makeInventoryKey(code, name){
+    const normalizedCode = normalizeCode(code || '');
+    const normalizedName = normalizeName(name || '');
+  
+    if(normalizedCode) return normalizedCode;
+    if(normalizedName) return `NAME:${normalizedName}`;
+    return '';
+  }
+  
+  function getExistingInventoryName(key, fallbackName=''){
+    return normalizeName(fallbackName || inventory.get(key)?.name || '');
+  }
+  function addCurrentCode(){
+    const code = normalizeCode(codeInput.value);
+    const typedName = normalizeName(nameInput.value);
+    const masterName = code ? normalizeName(getMasterName(code)) : '';
+    const inputName = typedName || masterName;
+    const qty = Math.floor(Number(qtyInput.value));
+  
+    if(!code && !inputName) return setStatus('JANか商品名を入れてね');
+    if(code && !isProbablyProductCode(code)) return setStatus('コード形式が不正っぽい');
+    if(!Number.isFinite(qty) || qty <= 0) return setStatus('数量は1以上');
+  
+    const inventoryKey = makeInventoryKey(code, inputName);
+    const finalName = getExistingInventoryName(inventoryKey, inputName || code);
+  
+    if(code && finalName){
+      addOrUpdateMaster(code, finalName);
+    }
+  
+    addInventory(inventoryKey, finalName, qty);
+    renderTable();
+    updateMasterSummary();
+    setRegisteredStatus(finalName || code, qty);
+    showFlash(`登録 ${qty}`);
+    soundRegistered();
+    vibrate([50,30,70]);
+    setDetectedFields('', '');
+    setQtyValue(qtyInput, 1);
+    closeQtySheet();
+  }
+  function addFromSheet(){
+    const code = normalizeCode(sheetCode.textContent);
+    const typedName = normalizeName(sheetNameInput.value);
+    const masterName = code ? normalizeName(getMasterName(code)) : '';
+    const name = typedName || masterName;
+    const qty = Math.floor(Number(sheetQty.value));
+  
+    if(!code && !name) return setStatus('JANか商品名を入れてね');
+    if(code && !isProbablyProductCode(code)) return setStatus('シート内コードが不正');
+    if(!Number.isFinite(qty) || qty <= 0) return setStatus('数量は1以上');
+  
+    const inventoryKey = makeInventoryKey(code, name);
+    const finalName = getExistingInventoryName(inventoryKey, name || code);
+  
+    if(code && finalName){
+      addOrUpdateMaster(code, finalName);
+    }
+  
+    addInventory(inventoryKey, finalName, qty);
+    renderTable();
+    updateMasterSummary();
+    setRegisteredStatus(finalName || code, qty);
+    showFlash(`登録 ${qty}`);
+    soundRegistered();
+    vibrate([50,30,70]);
+    setDetectedFields('', '');
+    setQtyValue(qtyInput, 1);
+    closeQtySheet();
+  }
   function clearCurrent(){ setDetectedFields('',''); setQtyValue(qtyInput, 1); closeQtySheet(); setStatus('クリア'); }
   function exportCsv(){ const rows=[['JAN','商品名','個数']]; for(const [code,row] of inventory.entries()) rows.push([code,row.name||'',String(row.qty)]); const csv=rows.map(r=>r.map(escapeCsv).join(',')).join('\r\n'); const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob); const d=new Date(), p=n=>String(n).padStart(2,'0'); const name=`inventory_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.csv`; const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000); setStatus(`CSV出力: ${name}`); }
   function copyToClipboard(){ if(inventory.size===0) return setStatus('コピーするデータがないよ'); const rows=[['JAN','商品名','個数']]; for(const [code,row] of inventory.entries()) rows.push([code,row.name||'',String(row.qty)]); const text=rows.map(r=>r.join('\t')).join('\n'); navigator.clipboard.writeText(text).then(()=>{ setStatus('クリップボードにコピーしたよ'); showFlash('コピー完了'); soundRegistered(); vibrate(30); }).catch(()=>setStatus('コピー失敗')); }
@@ -367,21 +442,11 @@
   function processDetectedRaw(raw){
     const now = Date.now();
     if(!(raw && isProbablyProductCode(raw) && hasValidCheckDigit(raw))) return;
+    if((now - lastDetectedAt) <= SCAN_COOLDOWN_MS) return;
   
-    if(raw === candidateCode) {
-      candidateCount += 1;
-    } else {
-      candidateCode = raw;
-      candidateCount = 1;
-    }
-  
-    if(candidateCount >= REQUIRED_CONSECUTIVE_DETECTIONS && (now - lastDetectedAt) > SCAN_COOLDOWN_MS){
-      lastDetectedRaw = raw;
-      lastDetectedAt = now;
-      candidateCode = '';
-      candidateCount = 0;
-      applyDetectedCode(raw);
-    }
+    lastDetectedRaw = raw;
+    lastDetectedAt = now;
+    applyDetectedCode(raw);
   }
   async function acquireWakeLock(){ try{ if(!('wakeLock' in navigator)) return; wakeLock=await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release',()=>{wakeLock=null;}); }catch(err){ console.error('Wake Lock error:',err);} }
   async function releaseWakeLock(){ try{ if(wakeLock){ await wakeLock.release(); wakeLock=null; } }catch(err){ console.error('Wake Lock release error:',err);} }
@@ -436,26 +501,24 @@
     }
   }
   function stopCamera(){
-  scanning = false;
-  candidateCode = '';
-  candidateCount = 0;
-
-  if(rafId) cancelAnimationFrame(rafId);
-  rafId = 0;
-
-  if(video.srcObject){
-    for(const track of video.srcObject.getTracks()) track.stop();
-    video.srcObject = null;
+    scanning = false;
+  
+    if(rafId) cancelAnimationFrame(rafId);
+    rafId = 0;
+  
+    if(video.srcObject){
+      for(const track of video.srcObject.getTracks()) track.stop();
+      video.srcObject = null;
+    }
+  
+    if(stream){
+      for(const track of stream.getTracks()) track.stop();
+      stream = null;
+    }
+  
+    try{ if(zxingReader?.reset) zxingReader.reset(); }catch{}
+    releaseWakeLock();
   }
-
-  if(stream){
-    for(const track of stream.getTracks()) track.stop();
-    stream = null;
-  }
-
-  try{ if(zxingReader?.reset) zxingReader.reset(); }catch{}
-  releaseWakeLock();
-}
   async function scanLoop(){
   if(!scanning) return;
 
