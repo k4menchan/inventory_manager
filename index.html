@@ -122,6 +122,7 @@
     </div>
   </div>
 </div>
+<script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script>
 (() => {
   'use strict';
@@ -139,9 +140,15 @@
 
   let stream = null, detector = null, scanning = false, rafId = 0, useBackCamera = true, lastDetectedRaw = '', lastDetectedAt = 0, flashTimer = 0;
   let candidateCode = '', candidateCount = 0;
-  const REQUIRED_CONSECUTIVE_DETECTIONS = 2, SCAN_COOLDOWN_MS = 2200;
+  
+  const REQUIRED_CONSECUTIVE_DETECTIONS = 2;
+  const SCAN_COOLDOWN_MS = 2200;
   const DETECT_REGION = {x:0.10, y:0.20, w:0.80, h:0.55};
+  
   let audioCtx = null, wakeLock = null, autoMode = false;
+  
+  let scannerEngine = 'native'; // 'native' | 'zxing'
+  let zxingReader = null;
   const inventory = new Map();
   const productMaster = new Map();
 
@@ -212,16 +219,263 @@
   function validateEAN8(code){ if(!/^\d{8}$/.test(code)) return false; const digits=code.split('').map(Number); const check=digits.pop(); let sum=0; for(let i=0;i<digits.length;i++) sum+=digits[i]*(i%2===0?3:1); return (10-(sum%10))%10===check; }
   function validateUPCA(code){ if(!/^\d{12}$/.test(code)) return false; const digits=code.split('').map(Number); const check=digits.pop(); let sum=0; for(let i=0;i<digits.length;i++) sum+=digits[i]*(i%2===0?3:1); return (10-(sum%10))%10===check; }
   function hasValidCheckDigit(code){ if(/^\d{13}$/.test(code)) return validateEAN13(code); if(/^\d{12}$/.test(code)) return validateUPCA(code); if(/^\d{8}$/.test(code)) return validateEAN8(code); return false; }
-  function getDetectRegion(videoEl){ const vw=videoEl.videoWidth||0, vh=videoEl.videoHeight||0; if(!vw||!vh) return null; return { sx:Math.floor(vw*DETECT_REGION.x), sy:Math.floor(vh*DETECT_REGION.y), sw:Math.floor(vw*DETECT_REGION.w), sh:Math.floor(vh*DETECT_REGION.h)}; }
-  function drawCenterCropToCanvas(videoEl){ const r=getDetectRegion(videoEl); if(!r||!detectCtx) return null; if(r.sw<=0||r.sh<=0) return null; detectCanvas.width=r.sw; detectCanvas.height=r.sh; detectCtx.clearRect(0,0,r.sw,r.sh); detectCtx.drawImage(videoEl,r.sx,r.sy,r.sw,r.sh,0,0,r.sw,r.sh); return detectCanvas; }
-  async function initDetector(){ if(!('BarcodeDetector' in window)){ detector=null; setStatus('BarcodeDetector未対応。手入力のみ'); return false; } try{ const formats=await window.BarcodeDetector.getSupportedFormats(); const preferred=['ean_13','ean_8','upc_a','upc_e']; const useFormats=preferred.filter(f=>formats.includes(f)); detector=new window.BarcodeDetector(useFormats.length?{formats:useFormats}:undefined); return true; } catch(err){ console.error(err); detector=null; setStatus('BarcodeDetector初期化失敗'); return false; } }
+  function isIOSLike(){
+    const ua = navigator.userAgent || '';
+    const isIPhoneOrIPad = /iPhone|iPad|iPod/i.test(ua);
+    const isIPadOSDesktopMode = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+    return isIPhoneOrIPad || isIPadOSDesktopMode;
+  }
+  
+  function getDetectRegion(videoEl){
+    const vw = videoEl.videoWidth || 0;
+    const vh = videoEl.videoHeight || 0;
+    if(!vw || !vh) return null;
+    return {
+      sx: Math.floor(vw * DETECT_REGION.x),
+      sy: Math.floor(vh * DETECT_REGION.y),
+      sw: Math.floor(vw * DETECT_REGION.w),
+      sh: Math.floor(vh * DETECT_REGION.h)
+    };
+  }
+  
+  function drawCenterCropToCanvas(videoEl){
+    const r = getDetectRegion(videoEl);
+    if(!r || !detectCtx) return null;
+    if(r.sw <= 0 || r.sh <= 0) return null;
+    detectCanvas.width = r.sw;
+    detectCanvas.height = r.sh;
+    detectCtx.clearRect(0, 0, r.sw, r.sh);
+    detectCtx.drawImage(videoEl, r.sx, r.sy, r.sw, r.sh, 0, 0, r.sw, r.sh);
+    return detectCanvas;
+  }
+  
+  function drawFullFrameToCanvas(videoEl){
+    const vw = videoEl.videoWidth || 0;
+    const vh = videoEl.videoHeight || 0;
+    if(!vw || !vh || !detectCtx) return null;
+    detectCanvas.width = vw;
+    detectCanvas.height = vh;
+    detectCtx.clearRect(0, 0, vw, vh);
+    detectCtx.drawImage(videoEl, 0, 0, vw, vh);
+    return detectCanvas;
+  }
+  
+  function updateScanBoxByEngine(){
+    // iPhone + ZXing のときは全体を読むので枠を消す
+    scanBoxEl.style.display = (scannerEngine === 'zxing') ? 'none' : '';
+  }
+  
+  async function initNativeDetector(){
+    if(!('BarcodeDetector' in window)){
+      detector = null;
+      return false;
+    }
+    try{
+      const formats = await window.BarcodeDetector.getSupportedFormats();
+      const preferred = ['ean_13', 'ean_8', 'upc_a', 'upc_e'];
+      const useFormats = preferred.filter(f => formats.includes(f));
+      detector = new window.BarcodeDetector(useFormats.length ? {formats: useFormats} : undefined);
+      scannerEngine = 'native';
+      updateScanBoxByEngine();
+      return true;
+    }catch(err){
+      console.error(err);
+      detector = null;
+      return false;
+    }
+  }
+  
+  function initZXing(){
+    try{
+      if(!window.ZXing) return false;
+  
+      const hints = new Map();
+      hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+        ZXing.BarcodeFormat.EAN_13,
+        ZXing.BarcodeFormat.EAN_8,
+        ZXing.BarcodeFormat.UPC_A,
+        ZXing.BarcodeFormat.UPC_E
+      ]);
+      hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+  
+      zxingReader = new ZXing.MultiFormatReader();
+      zxingReader.setHints(hints);
+  
+      scannerEngine = 'zxing';
+      updateScanBoxByEngine();
+      return true;
+    }catch(err){
+      console.error(err);
+      zxingReader = null;
+      return false;
+    }
+  }
+  
+  async function initScanner(){
+    detector = null;
+    zxingReader = null;
+  
+    // iPhone系は ZXing 優先
+    if(isIOSLike()){
+      if(initZXing()) return true;
+      if(await initNativeDetector()) return true;
+      setStatus('ZXing / BarcodeDetector の初期化に失敗');
+      return false;
+    }
+  
+    // それ以外は native 優先、ダメなら ZXing
+    if(await initNativeDetector()) return true;
+    if(initZXing()) return true;
+  
+    setStatus('BarcodeDetector / ZXing の初期化に失敗');
+    return false;
+  }
+  
+  function isZXingMissError(err){
+    const name = err?.name || '';
+    return name === 'NotFoundException' || name === 'ChecksumException' || name === 'FormatException';
+  }
+  
+  async function detectRawValueFromSource(src){
+    if(scannerEngine === 'native'){
+      if(!detector) return '';
+      const barcodes = await detector.detect(src);
+      if(barcodes?.length){
+        return normalizeCode(barcodes[0].rawValue);
+      }
+      return '';
+    }
+  
+    if(scannerEngine === 'zxing'){
+      if(!zxingReader || !window.ZXing) return '';
+      try{
+        const luminanceSource = new ZXing.HTMLCanvasElementLuminanceSource(src);
+        const binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
+        const result = zxingReader.decode(binaryBitmap);
+        return normalizeCode(result?.getText?.() || result?.text || '');
+      }catch(err){
+        if(!isZXingMissError(err)) console.error(err);
+        return '';
+      }finally{
+        try{ zxingReader.reset(); }catch{}
+      }
+    }
+  
+    return '';
+  }
+  
+  function processDetectedRaw(raw){
+    const now = Date.now();
+    if(!(raw && isProbablyProductCode(raw) && hasValidCheckDigit(raw))) return;
+  
+    if(raw === candidateCode) {
+      candidateCount += 1;
+    } else {
+      candidateCode = raw;
+      candidateCount = 1;
+    }
+  
+    if(candidateCount >= REQUIRED_CONSECUTIVE_DETECTIONS && (now - lastDetectedAt) > SCAN_COOLDOWN_MS){
+      lastDetectedRaw = raw;
+      lastDetectedAt = now;
+      candidateCode = '';
+      candidateCount = 0;
+      applyDetectedCode(raw);
+    }
+  }
   async function acquireWakeLock(){ try{ if(!('wakeLock' in navigator)) return; wakeLock=await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release',()=>{wakeLock=null;}); }catch(err){ console.error('Wake Lock error:',err);} }
   async function releaseWakeLock(){ try{ if(wakeLock){ await wakeLock.release(); wakeLock=null; } }catch(err){ console.error('Wake Lock release error:',err);} }
   document.addEventListener('visibilitychange', async ()=>{ if(document.visibilityState==='visible' && scanning) await acquireWakeLock(); });
-  async function startCamera(){ stopCamera(); ensureAudioContext(); if(!window.isSecureContext) return setStatus('HTTPSで開いてね'); if(!navigator.mediaDevices) return setStatus('mediaDevicesなし'); if(!navigator.mediaDevices.getUserMedia) return setStatus('getUserMediaなし'); await initDetector(); try{ stream=await navigator.mediaDevices.getUserMedia({audio:false, video:{ facingMode: useBackCamera ? {ideal:'environment'} : {ideal:'user'}, width:{ideal:1920}, height:{ideal:1080}, frameRate:{ideal:30,max:30} }}); video.srcObject=stream; await video.play(); const track = stream.getVideoTracks()[0]; try{ await track.applyConstraints({advanced:[{focusMode:'continuous'}]}); }catch{} scanning=true; setStatus('カメラ起動'); hideGuide(); scanLoop(); }catch(err){ console.error(err); if(err?.name==='NotAllowedError') setStatus('カメラ権限が拒否された'); else if(err?.name==='NotFoundError') setStatus('カメラが見つからない'); else if(err?.name==='NotReadableError') setStatus('他アプリがカメラ使用中かも'); else setStatus('カメラ起動失敗: '+(err?.name||err)); } }
-  function stopCamera(){ scanning=false; candidateCode=''; candidateCount=0; if(rafId) cancelAnimationFrame(rafId); rafId=0; if(video.srcObject){ for(const track of video.srcObject.getTracks()) track.stop(); video.srcObject=null; } if(stream){ for(const track of stream.getTracks()) track.stop(); stream=null; } }
-  async function scanLoop(){ if(!scanning) return; try{ if(detector && video.readyState>=2 && !qtySheet.classList.contains('show')){ const src=drawCenterCropToCanvas(video); if(src){ const barcodes = await detector.detect(src); if(barcodes?.length){ const raw=normalizeCode(barcodes[0].rawValue); const now=Date.now(); if(raw && isProbablyProductCode(raw) && hasValidCheckDigit(raw)){ if(raw===candidateCode) candidateCount += 1; else { candidateCode=raw; candidateCount=1; } if(candidateCount>=REQUIRED_CONSECUTIVE_DETECTIONS && (raw!==lastDetectedRaw || now-lastDetectedAt>SCAN_COOLDOWN_MS)){ lastDetectedRaw=raw; lastDetectedAt=now; candidateCode=''; candidateCount=0; applyDetectedCode(raw); } } else { candidateCode=''; candidateCount=0; } } else { candidateCode=''; candidateCount=0; } } } }catch(err){ console.error(err); } rafId=requestAnimationFrame(scanLoop); }
+  async function startCamera(){
+    stopCamera();
+    ensureAudioContext();
+  
+    if(!window.isSecureContext) return setStatus('HTTPSで開いてね');
+    if(!navigator.mediaDevices) return setStatus('mediaDevicesなし');
+    if(!navigator.mediaDevices.getUserMedia) return setStatus('getUserMediaなし');
+  
+    const ok = await initScanner();
+    if(!ok) return;
+  
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio:false,
+        video:{
+          facingMode: useBackCamera ? {ideal:'environment'} : {ideal:'user'},
+          width:{ideal:1920},
+          height:{ideal:1080},
+          frameRate:{ideal:30,max:30}
+        }
+      });
+  
+      video.srcObject = stream;
+      await video.play();
+  
+      const track = stream.getVideoTracks()[0];
+      try{
+        await track.applyConstraints({advanced:[{focusMode:'continuous'}]});
+      }catch{}
+  
+      scanning = true;
+  
+      if(scannerEngine === 'zxing'){
+        setStatus('カメラ起動（iPhone向けZXing）');
+      }else{
+        setStatus('カメラ起動（BarcodeDetector）');
+      }
+  
+      hideGuide();
+      await acquireWakeLock();
+      scanLoop();
+    }catch(err){
+      console.error(err);
+      if(err?.name==='NotAllowedError') setStatus('カメラ権限が拒否された');
+      else if(err?.name==='NotFoundError') setStatus('カメラが見つからない');
+      else if(err?.name==='NotReadableError') setStatus('他アプリがカメラ使用中かも');
+      else setStatus('カメラ起動失敗: ' + (err?.name || err));
+    }
+  }
+  function stopCamera(){
+  scanning = false;
+  candidateCode = '';
+  candidateCount = 0;
 
+  if(rafId) cancelAnimationFrame(rafId);
+  rafId = 0;
+
+  if(video.srcObject){
+    for(const track of video.srcObject.getTracks()) track.stop();
+    video.srcObject = null;
+  }
+
+  if(stream){
+    for(const track of stream.getTracks()) track.stop();
+    stream = null;
+  }
+
+  try{ if(zxingReader?.reset) zxingReader.reset(); }catch{}
+  releaseWakeLock();
+}
+  async function scanLoop(){
+  if(!scanning) return;
+
+  try{
+    if(video.readyState >= 2 && !qtySheet.classList.contains('show')){
+      const src = (scannerEngine === 'zxing')
+        ? drawFullFrameToCanvas(video)     // iPhone は全体を読む
+        : drawCenterCropToCanvas(video);   // Android 等は今まで通り中央切り抜き
+
+      if(src){
+        const raw = await detectRawValueFromSource(src);
+        if(raw) processDetectedRaw(raw);
+      }
+    }
+  }catch(err){
+    console.error(err);
+  }
+
+  rafId = requestAnimationFrame(scanLoop);
+}
   startBtn.addEventListener('click', async ()=>{ await startCamera(); await acquireWakeLock(); });
   stopBtn.addEventListener('click', async ()=>{ stopCamera(); await releaseWakeLock(); setStatus('カメラ停止'); setStartGuide(); });
   switchBtn.addEventListener('click', async ()=>{ useBackCamera=!useBackCamera; await startCamera(); });
